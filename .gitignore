@@ -1,0 +1,63 @@
+# .gitignore for Cricket Analytics Platform
+
+# ─── Python / Django ───────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.so
+venv/
+.venv/
+env/
+ENV/
+.env
+*.sqlite3
+staticfiles/
+mediafiles/
+
+# ─── Django specific ───────────────────────────
+local_settings.py
+db.sqlite3
+celerybeat-schedule
+celerybeat.pid
+
+# ─── ML artifacts ──────────────────────────────
+ml/artifacts/*.pkl
+ml/artifacts/*.pt
+ml/artifacts/*.h5
+ml/artifacts/*.joblib
+ml/.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ─── Node / Angular ────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/.env.local
+
+# ─── Docker ────────────────────────────────────
+*.log
+
+# ─── IDE / OS ──────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Sensitive ─────────────────────────────────
+.env
+*.env.local
+*.env.production
+secrets.yaml
+
+# ─── Temp lock files (Word) ────────────────────
+~$*.docx

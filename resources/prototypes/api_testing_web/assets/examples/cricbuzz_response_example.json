@@ -1,0 +1,126 @@
+{
+  "recent_matches": {
+    "typeMatches": [
+      {
+        "matchType": "International",
+        "seriesMatches": [
+          {
+            "seriesAdWrapper": {
+              "seriesId": 7607,
+              "seriesName": "Australia tour of India, 2023"
+            },
+            "matches": [
+              {
+                "matchInfo": {
+                  "matchId": 66186,
+                  "seriesId": 7607,
+                  "seriesName": "Australia tour of India, 2023",
+                  "matchDesc": "1st Test",
+                  "matchFormat": "TEST",
+                  "startDate": "1675918800000",
+                  "endDate": "1676350800000",
+                  "state": "Complete",
+                  "status": "India won by an innings and 132 runs",
+                  "team1": {
+                    "teamId": 2,
+                    "teamName": "India",
+                    "teamSName": "IND",
+                    "imageId": 172366
+                  },
+                  "team2": {
+                    "teamId": 4,
+                    "teamName": "Australia",
+                    "teamSName": "AUS",
+                    "imageId": 172367
+                  },
+                  "venueInfo": {
+                    "id": 106,
+                    "ground": "Vidarbha Cricket Association Stadium",
+                    "city": "Nagpur",
+                    "timezone": "IST"
+                  },
+                  "currBatTeamId": 2,
+                  "seriesStartDt": "1675918800000",
+                  "seriesEndDt": "1679509800000",
+                  "isTimeAnnounced": true,
+                  "stateTitle": "India won by an innings and 132 runs"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "live_matches": {
+    "typeMatches": [
+      {
+        "matchType": "League",
+        "seriesMatches": [
+          {
+            "seriesAdWrapper": {
+              "seriesId": 7608,
+              "seriesName": "Indian Premier League 2023"
+            },
+            "matches": [
+              {
+                "matchInfo": {
+                  "matchId": 66190,
+                  "seriesId": 7608,
+                  "seriesName": "Indian Premier League 2023",
+                  "matchDesc": "1st Match",
+                  "matchFormat": "T20",
+                  "startDate": "1680265800000",
+                  "endDate": "1680280200000",
+                  "state": "In Progress",
+                  "status": "CSK need 20 runs in 12 balls",
+                  "team1": {
+                    "teamId": 58,
+                    "teamName": "Chennai Super Kings",
+                    "teamSName": "CSK",
+                    "imageId": 172370
+                  },
+                  "team2": {
+                    "teamId": 59,
+                    "teamName": "Gujarat Titans",
+                    "teamSName": "GT",
+                    "imageId": 172371
+                  },
+                  "venueInfo": {
+                    "id": 56,
+                    "ground": "Narendra Modi Stadium",
+                    "city": "Ahmedabad",
+                    "timezone": "IST"
+                  },
+                  "currBatTeamId": 58,
+                  "seriesStartDt": "1680265800000",
+                  "seriesEndDt": "1685298600000",
+                  "isTimeAnnounced": true,
+                  "stateTitle": "In Progress"
+                },
+                "matchScore": {
+                  "team1Score": {
+                    "inngs1": {
+                      "inningsId": 1,
+                      "runs": 178,
+                      "wickets": 7,
+                      "overs": 20
+                    }
+                  },
+                  "team2Score": {
+                    "inngs1": {
+                      "inningsId": 2,
+                      "runs": 159,
+                      "wickets": 4,
+                      "overs": 18
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

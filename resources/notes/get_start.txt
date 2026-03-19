@@ -1,0 +1,13 @@
+🛠 Recommendations for Success:
+Start small: Focus on one sport (cricket) and one prediction model (e.g., Logistic Regression) first.
+
+Use mock data initially to build the pipeline before integrating live data.
+
+Implement robust logging and alerts for scraping failures and model drift.
+
+Consider using third-party sports data providers if the project gains traction (e.g., Sportmonks, API-Sports).
+
+Plan for model explainability from the start — this is a key USP.
+
+Keep the frontend lightweight — avoid over-engineering before validating user interest.
+

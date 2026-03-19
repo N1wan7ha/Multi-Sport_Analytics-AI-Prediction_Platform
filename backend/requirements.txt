@@ -1,0 +1,38 @@
+# Core
+Django==5.0.6
+djangorestframework==3.15.2
+djangorestframework-simplejwt==5.3.1
+django-cors-headers==4.4.0
+django-environ==0.11.2
+django-filter==24.2
+
+# Database
+psycopg2-binary==2.9.9
+
+# Cache / Queue
+redis==5.0.8
+celery==5.3.6
+django-celery-beat==2.7.0
+django-celery-results==2.5.1
+
+# HTTP
+httpx==0.27.0
+requests==2.32.3
+
+# Utilities
+Pillow==10.4.0
+python-decouple==3.8
+whitenoise==6.7.0
+
+# Dev / Testing
+pytest==8.3.2
+pytest-django==4.8.0
+pytest-asyncio==0.23.8
+factory-boy==3.3.1
+coverage==7.6.1
+
+# Monitoring
+django-prometheus==2.3.1
+
+# WSGI
+gunicorn==22.0.0
