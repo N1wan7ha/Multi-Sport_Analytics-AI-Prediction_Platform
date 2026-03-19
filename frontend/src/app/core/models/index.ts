@@ -1,5 +1,5 @@
 /**
- * Core domain models — Cricket Analytics Platform
+ * Core domain models — MatchMind (Multi-Sport Prediction Platform)
  */
 
 export interface Team {

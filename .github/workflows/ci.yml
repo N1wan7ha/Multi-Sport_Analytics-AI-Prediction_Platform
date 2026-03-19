@@ -1,4 +1,4 @@
-name: Cricket Analytics CI/CD
+name: MatchMind CI/CD
 
 on:
   push:

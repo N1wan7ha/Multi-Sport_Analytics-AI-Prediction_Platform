@@ -1,6 +1,6 @@
 # 🏏 Cricket Analytics & Prediction Platform — Development Plan
 
-> **Status:** ✅ Phase 0 DONE (19 Mar 2026) → 🔄 Phase 1 — Data Pipeline next  
+> **Status:** ✅ Phase 0 DONE (19 Mar 2026) → ✅ Phase 1 DONE (19 Mar 2026) → 🔄 Phase 2 — Backend API next  
 > **Stack:** Angular 17 · Django 5 · PostgreSQL 16 · Redis · Celery · Docker · scikit-learn / XGBoost / TensorFlow  
 > **Goal:** 86%+ match prediction accuracy, 5,000+ users, 99.5% uptime
 
@@ -9,7 +9,7 @@
 ## 📦 Repository Structure (Target)
 
 ```
-prediction_analytics-Platform/
+prediction_analytics-Platform/           ← **TODO: rename to matchmind/**
 ├── resources/                        ← ALL reference material lives here
 │   ├── docs/
 │   │   ├── DPR - Multi-Sport Analytics & Prediction Platform.docx
@@ -46,7 +46,7 @@ prediction_analytics-Platform/
 | Phase | Name | Duration | Goal |
 |-------|------|----------|------|
 | 0 | **Foundation & Setup** ✅ | Week 1–2 | Repo structure, Docker, DB schema, CI/CD skeleton |
-| 1 | **Data Pipeline** | Week 3–5 | ETL from CricAPI + Cricbuzz → PostgreSQL, Celery jobs |
+| 1 | **Data Pipeline** ✅ | Week 3–5 | ETL from CricAPI + Cricbuzz → PostgreSQL, Celery jobs |
 | 2 | **Backend API** | Week 6–8 | Django REST endpoints for matches, players, series, predictions |
 | 3 | **ML Core** | Week 9–13 | Feature engineering + model training (pre-match) |
 | 4 | **Frontend** | Week 14–17 | Angular SPA with dashboard, predictions, analytics |
@@ -135,7 +135,9 @@ prediction_analytics-Platform/
 
 ---
 
-## 📋 Phase 1 — Data Pipeline (Week 3–5)
+## 📋 Phase 1 — Data Pipeline (Week 3–5) ✅ COMPLETE
+
+> **Completed:** 19 March 2026
 
 ### 1.1 Data Sources (Already Proven in `api_testing_web`)
 | Source | Endpoint | Used For | Rate Limit |
@@ -143,12 +145,14 @@ prediction_analytics-Platform/
 | CricAPI (`api.cricapi.com`) | `/currentMatches`, `/matches`, `/players`, `/series_info` | Live matches, players | 100/day (free) |
 | Cricbuzz via RapidAPI | `/matches/v1/recent`, `/matches/v1/live` | Live + recent results | 500/month (free) |
 
-### 1.2 Django Management Commands
-- `python manage.py sync_current_matches` — pull active matches → DB
-- `python manage.py sync_series` — pull series data
-- `python manage.py sync_player_stats --match-id=<id>` — pull match scorecard
+### 1.2 Django Management Commands ✅
+- [x] `python manage.py sync_current_matches` — pull active matches → DB
+- [x] `python manage.py sync_series` — pull series data
+- [x] `python manage.py sync_player_stats --match-id=<id>` — pull match scorecard
+- [x] `python manage.py sync_matches --source=completed` — sync recent completed matches
+- [x] `python manage.py sync_matches --source=unified` — cross-source merge + dedupe
 
-### 1.3 Celery Scheduled Tasks
+### 1.3 Celery Scheduled Tasks ✅
 ```python
 # Every 5 minutes: sync live match data
 # Every 1 hour: sync completed match results
@@ -156,16 +160,17 @@ prediction_analytics-Platform/
 # Every day at midnight: run model re-training pipeline
 ```
 
-### 1.4 Data Normalization
-- Port logic from `api_testing_web/app/domain/normalize.js` to Python (`data_pipeline/normalizers.py`)
-- Deduplicate matches across CricAPI + Cricbuzz using name similarity
-- Standardize: team names, player names, venue names, format (test/odi/t20/t10)
+### 1.4 Data Normalization ✅
+- [x] Port logic from `api_testing_web/app/domain/normalize.js` to Python (`data_pipeline/normalizers.py`)
+- [x] Deduplicate matches across CricAPI + Cricbuzz using name similarity
+- [x] Standardize: team names, player names, venue names, format (test/odi/t20/t10)
 
-### 1.5 Redis Caching Strategy
-- Cache live match data: TTL 60s
-- Cache completed matches: TTL 6h
-- Cache player stats: TTL 24h
-- Cache prediction results: TTL 30min (until match starts)
+### 1.5 Redis Caching Strategy ✅
+- [x] Cache live match data: TTL 60s
+- [x] Cache completed matches: TTL 6h
+- [x] Cache player stats: TTL 24h
+- [x] Cache prediction results: TTL 30min (until match starts)
+- [x] Added pipeline status endpoint: `GET /api/v1/pipeline/status/` for sync counters/timestamps
 
 ---
 
@@ -371,7 +376,7 @@ Add to `backend/.env` and `frontend/src/environments/` — never hardcode.
 
 ---
 
-## 🎯 Phase 1 — Next Steps (Data Pipeline)
+## 🎯 Phase 1 — Closure Notes (Data Pipeline)
 
 ### Start Dev Server Right Now
 ```powershell
@@ -387,14 +392,14 @@ npm run start
 # → http://localhost:4200/
 ```
 
-### Phase 1 Priorities
-1. **Fill in `.env`** → add your real `CRICAPI_KEY` + `CRICBUZZ_RAPIDAPI_KEY`
-2. **Test manual sync** → `python manage.py sync_matches` (confirm data flows to DB)
-3. **Seed schedules** → `python manage.py seed_celery_schedules` (configure Celery Beat)
-4. **Build normalizer** → `apps/data_pipeline/normalizers.py` — dedup matches across CricAPI + Cricbuzz
-5. **Player stats sync** → new task `sync_player_stats` — pull scorecards via `/series_info`
-6. **Redis caching** — add `@cache_page` decorators to match list endpoints
-7. **Start Docker Compose** → `docker compose -f docker-compose.dev.yml up --build`
+### Phase 1 Completed Checklist
+1. [ ] **Fill in `.env`** → add your real `CRICAPI_KEY` + `CRICBUZZ_RAPIDAPI_KEY`
+2. [ ] **Test manual sync** → `python manage.py sync_matches` (confirm data flows to DB with real keys)
+3. [ ] **Seed schedules** → `python manage.py seed_celery_schedules` (configure Celery Beat runtime)
+4. [x] **Build normalizer** → `apps/data_pipeline/normalizers.py` — dedup matches across CricAPI + Cricbuzz
+5. [x] **Player stats sync** → task `sync_player_stats` implemented and tested
+6. [x] **Redis caching** — match list/detail/live caching + pipeline sync counters
+7. [ ] **Start Docker Compose** → `docker compose -f docker-compose.dev.yml up --build`
 
 ---
 
@@ -431,4 +436,4 @@ npm run start
 
 ---
 
-*Plan Version: 1.1 | Phase 0 Completed: 19 March 2026 | Phase 1 Starting*
+*Plan Version: 1.2 | Phase 0 Completed: 19 March 2026 | Phase 1 Completed: 19 March 2026*

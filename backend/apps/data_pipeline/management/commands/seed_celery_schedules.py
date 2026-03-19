@@ -16,7 +16,7 @@ class Command(BaseCommand):
     help = 'Seed Celery Beat periodic task schedules'
 
     def handle(self, *args, **options):
-        # ── Every 5 minutes: sync live matches ──────────────
+        # ── Every 5 minutes: sync live match data ───────────
         every_5min, _ = IntervalSchedule.objects.get_or_create(
             every=5, period=IntervalSchedule.MINUTES
         )
@@ -31,34 +31,54 @@ class Command(BaseCommand):
         )
         self.stdout.write('  ✅ sync_cricbuzz_live — every 5 min')
 
-        # ── Every 30 minutes: sync CricAPI current matches ──
-        every_30min, _ = IntervalSchedule.objects.get_or_create(
-            every=30, period=IntervalSchedule.MINUTES
+        # ── Every 1 hour: sync completed match results ──────
+        every_1h, _ = IntervalSchedule.objects.get_or_create(
+            every=60, period=IntervalSchedule.MINUTES
         )
         PeriodicTask.objects.update_or_create(
-            name='Sync CricAPI Current Matches (30min)',
+            name='Sync Cricbuzz Completed Matches (1h)',
             defaults={
-                'task': 'apps.data_pipeline.tasks.sync_current_matches',
-                'interval': every_30min,
+                'task': 'apps.data_pipeline.tasks.sync_completed_matches',
+                'interval': every_1h,
                 'args': json.dumps([]),
                 'enabled': True,
             }
         )
-        self.stdout.write('  ✅ sync_current_matches — every 30 min')
+        self.stdout.write('  ✅ sync_completed_matches — every 1 hour')
 
-        # ── Every 6 hours: sync series ───────────────────────
+        # ── Every 6 hours: sync player stats ────────────────
         every_6h, _ = IntervalSchedule.objects.get_or_create(
             every=360, period=IntervalSchedule.MINUTES
         )
         PeriodicTask.objects.update_or_create(
-            name='Sync CricAPI Series (6h)',
+            name='Sync Player Stats (6h)',
             defaults={
-                'task': 'apps.data_pipeline.tasks.sync_series',
+                'task': 'apps.data_pipeline.tasks.sync_player_stats',
                 'interval': every_6h,
                 'args': json.dumps([]),
                 'enabled': True,
             }
         )
-        self.stdout.write('  ✅ sync_series — every 6 hours')
+        self.stdout.write('  ✅ sync_player_stats — every 6 hours')
+
+        # ── Daily at midnight: run model retraining ─────────
+        midnight, _ = CrontabSchedule.objects.get_or_create(
+            minute='0',
+            hour='0',
+            day_of_week='*',
+            day_of_month='*',
+            month_of_year='*',
+            timezone='Asia/Kolkata',
+        )
+        PeriodicTask.objects.update_or_create(
+            name='Run Model Retraining Pipeline (daily)',
+            defaults={
+                'task': 'apps.data_pipeline.tasks.run_model_retraining_pipeline',
+                'crontab': midnight,
+                'args': json.dumps([]),
+                'enabled': True,
+            }
+        )
+        self.stdout.write('  ✅ run_model_retraining_pipeline — daily at 00:00 IST')
 
         self.stdout.write(self.style.SUCCESS('\n🎯 All Celery Beat schedules configured!'))

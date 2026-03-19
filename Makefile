@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════
-# Cricket Analytics Platform — Developer Makefile
+# MatchMind (Multi-Sport Prediction Platform) — Developer Makefile
 # ═══════════════════════════════════════════════════════════
 # Usage:  make <target>
 # Requires: Python 3.11+, Node 20+, Docker Desktop

@@ -1,10 +1,10 @@
 """
-Cricket Analytics Platform — Root README
+MatchMind — Multi-Sport Prediction Platform
 """
 
-# 🏏 Cricket Analytics & Prediction Platform
+# 🎣 MatchMind — Multi-Sport Prediction Platform
 
-An AI-powered multi-sport analytics platform that delivers real-time match predictions with 86%+ accuracy.
+An AI-powered multi-sport analytics platform that delivers real-time match predictions and insights across cricket, football, basketball, and more with 86%+ accuracy.
 
 ## 🏗️ Stack
 - **Frontend**: Angular 17 (TypeScript, SCSS)
@@ -33,8 +33,7 @@ prediction_analytics-Platform/
 ```bash
 cd backend
 pip install -r requirements.txt
-python manage.py migrate          # uses SQLite by default in dev
-python manage.py runserver
+python manage.py migrate          # uses SQLite by default in devpython manage.py create_dev_superuser  # admin@matchmind.dev / admin1234python manage.py runserver
 # → http://localhost:8000/api/v1/
 # → http://localhost:8000/admin/
 ```

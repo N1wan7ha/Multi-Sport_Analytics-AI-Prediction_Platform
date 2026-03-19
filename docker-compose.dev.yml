@@ -7,18 +7,18 @@ services:
   # ─────────────────────────────────────────────
   db:
     image: postgres:16-alpine
-    container_name: cricket_db
+    container_name: matchmind_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-cricket_analytics}
-      POSTGRES_USER: ${DB_USER:-cricket_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-cricket_password}
+      POSTGRES_DB: ${DB_NAME:-matchmind_db}
+      POSTGRES_USER: ${DB_USER:-matchmind_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-matchmind_pwd}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-cricket_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-matchmind_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,7 +28,7 @@ services:
   # ─────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: cricket_redis
+    container_name: matchmind_redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -45,7 +45,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: cricket_backend
+    container_name: matchmind_backend
     restart: unless-stopped
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
@@ -68,7 +68,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: cricket_celery
+    container_name: matchmind_celery
     restart: unless-stopped
     command: celery -A config worker --loglevel=info --concurrency=4
     volumes:
@@ -86,7 +86,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: cricket_celery_beat
+    container_name: matchmind_celery_beat
     restart: unless-stopped
     command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
@@ -104,7 +104,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
-    container_name: cricket_frontend
+    container_name: matchmind_frontend
     restart: unless-stopped
     volumes:
       - ./frontend:/app

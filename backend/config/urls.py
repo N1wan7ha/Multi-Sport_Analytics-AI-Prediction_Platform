@@ -1,4 +1,4 @@
-"""Root URL Configuration — Cricket Analytics Platform."""
+"""Root URL Configuration — MatchMind (Multi-Sport Prediction Platform)."""
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -30,6 +30,7 @@ urlpatterns = [
     path(f'{API_PREFIX}series/', include('apps.series.urls')),
     path(f'{API_PREFIX}predictions/', include('apps.predictions.urls')),
     path(f'{API_PREFIX}analytics/', include('apps.analytics.urls')),
+    path(f'{API_PREFIX}pipeline/', include('apps.data_pipeline.urls')),
 ]
 
 # Serve media in dev

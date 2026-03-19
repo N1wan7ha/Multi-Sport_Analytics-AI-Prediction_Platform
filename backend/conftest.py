@@ -16,4 +16,5 @@ def pytest_configure():
     settings.DATABASES['default'] = {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': ':memory:',  # In-memory DB for fast tests
+        'ATOMIC_REQUESTS': False,
     }

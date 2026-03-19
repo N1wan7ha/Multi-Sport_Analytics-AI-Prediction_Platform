@@ -1,4 +1,4 @@
-# .gitignore for Cricket Analytics Platform
+# .gitignore for MatchMind (Multi-Sport Prediction Platform)
 
 # ─── Python / Django ───────────────────────────
 __pycache__/

@@ -1,5 +1,5 @@
 """
-Django Base Settings — Cricket Analytics Platform
+Django Base Settings — MatchMind (Multi-Sport Prediction Platform)
 """
 import os
 from pathlib import Path
@@ -85,9 +85,9 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='cricket_analytics'),
-        'USER': config('DB_USER', default='cricket_user'),
-        'PASSWORD': config('DB_PASSWORD', default='cricket_password'),
+        'NAME': config('DB_NAME', default='matchmind_db'),
+        'USER': config('DB_USER', default='matchmind_user'),
+        'PASSWORD': config('DB_PASSWORD', default='matchmind_pwd'),
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432'),
         'OPTIONS': {

@@ -1,5 +1,5 @@
 """
-ML Ensemble Predictor — Cricket Analytics Platform
+ML Ensemble Predictor — MatchMind (Multi-Sport Prediction Platform)
 
 Loads trained models from artifacts/ and returns pre-match win probabilities.
 """
