@@ -40,7 +40,7 @@ setup: install migrate superuser seed ## Full dev setup (install + migrate + sup
 	@echo "   Admin   : http://localhost:8000/admin/"
 	@echo "   Frontend: http://localhost:4200/"
 
-superuser: ## Create dev superuser (admin@cricket.dev / admin1234)
+superuser: ## Create dev superuser (admin@matchmind.dev / admin1234)
 	cd $(BACKEND_DIR) && python manage.py create_dev_superuser --settings=$(DJANGO_SETTINGS)
 
 seed: ## Seed Celery Beat schedules into DB

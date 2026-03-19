@@ -17,7 +17,7 @@ An AI-powered multi-sport analytics platform that delivers real-time match predi
 ## 📁 Folder Structure
 
 ```
-prediction_analytics-Platform/
+matchmind/
 ├── backend/         ← Django REST API
 ├── frontend/        ← Angular 17 SPA
 ├── ml/              ← ML training notebooks + model code
@@ -33,7 +33,9 @@ prediction_analytics-Platform/
 ```bash
 cd backend
 pip install -r requirements.txt
-python manage.py migrate          # uses SQLite by default in devpython manage.py create_dev_superuser  # admin@matchmind.dev / admin1234python manage.py runserver
+python manage.py migrate          # uses SQLite by default in dev
+python manage.py create_dev_superuser  # admin@matchmind.dev / admin1234
+python manage.py runserver
 # → http://localhost:8000/api/v1/
 # → http://localhost:8000/admin/
 ```

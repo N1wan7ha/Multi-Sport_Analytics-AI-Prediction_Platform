@@ -1,4 +1,4 @@
-# 🏏 Cricket Analytics & Prediction Platform — Development Plan
+# 🏏 MatchMind — Multi-Sport Prediction Platform Development Plan
 
 > **Status:** ✅ Phase 0 DONE (19 Mar 2026) → ✅ Phase 1 DONE (19 Mar 2026) → 🔄 Phase 2 — Backend API next  
 > **Stack:** Angular 17 · Django 5 · PostgreSQL 16 · Redis · Celery · Docker · scikit-learn / XGBoost / TensorFlow  
@@ -9,7 +9,7 @@
 ## 📦 Repository Structure (Target)
 
 ```
-prediction_analytics-Platform/           ← **TODO: rename to matchmind/**
+matchmind/
 ├── resources/                        ← ALL reference material lives here
 │   ├── docs/
 │   │   ├── DPR - Multi-Sport Analytics & Prediction Platform.docx
@@ -384,7 +384,7 @@ Add to `backend/.env` and `frontend/src/environments/` — never hardcode.
 cd backend
 python manage.py runserver
 # → http://localhost:8000/api/v1/
-# → http://localhost:8000/admin/  (admin@cricket.dev / admin1234)
+# → http://localhost:8000/admin/  (admin@matchmind.dev / admin1234)
 
 # Terminal 2 — Angular frontend
 cd frontend

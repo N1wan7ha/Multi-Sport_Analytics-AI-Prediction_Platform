@@ -20,7 +20,7 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: cricket_test
+          POSTGRES_DB: matchmind_test
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_password
         ports: ['5432:5432']
@@ -48,7 +48,7 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: config.settings.dev
           DB_HOST: localhost
-          DB_NAME: cricket_test
+          DB_NAME: matchmind_test
           DB_USER: test_user
           DB_PASSWORD: test_password
         run: python manage.py check
@@ -58,7 +58,7 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: config.settings.dev
           DB_HOST: localhost
-          DB_NAME: cricket_test
+          DB_NAME: matchmind_test
           DB_USER: test_user
           DB_PASSWORD: test_password
         run: python manage.py migrate

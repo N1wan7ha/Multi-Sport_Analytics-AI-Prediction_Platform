@@ -63,6 +63,13 @@ class NormalizerTests(TestCase):
 
 
 class PipelineTaskIntegrationTests(TestCase):
+    def setUp(self):
+        """Clear match data before each test to ensure isolation."""
+        from apps.matches.models import Match, Team, Venue
+        Match.objects.all().delete()
+        Team.objects.all().delete()
+        Venue.objects.all().delete()
+
     @patch('apps.data_pipeline.tasks._cricapi_get')
     def test_sync_current_matches_writes_match_rows(self, mock_cricapi_get):
         mock_cricapi_get.return_value = {

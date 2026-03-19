@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
-DEV_EMAIL    = 'admin@cricket.dev'
+DEV_EMAIL    = 'admin@matchmind.dev'
 DEV_USERNAME = 'admin'
 DEV_PASSWORD = 'admin1234'
 
