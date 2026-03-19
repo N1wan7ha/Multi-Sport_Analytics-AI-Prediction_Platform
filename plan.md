@@ -1,6 +1,6 @@
 # 🏏 Cricket Analytics & Prediction Platform — Development Plan
 
-> **Status:** Phase 0 Complete — API integration tested, data flowing  
+> **Status:** ✅ Phase 0 DONE (19 Mar 2026) → 🔄 Phase 1 — Data Pipeline next  
 > **Stack:** Angular 17 · Django 5 · PostgreSQL 16 · Redis · Celery · Docker · scikit-learn / XGBoost / TensorFlow  
 > **Goal:** 86%+ match prediction accuracy, 5,000+ users, 99.5% uptime
 
@@ -45,7 +45,7 @@ prediction_analytics-Platform/
 
 | Phase | Name | Duration | Goal |
 |-------|------|----------|------|
-| 0 | **Foundation & Setup** | Week 1–2 | Repo structure, Docker, DB schema, CI/CD skeleton |
+| 0 | **Foundation & Setup** ✅ | Week 1–2 | Repo structure, Docker, DB schema, CI/CD skeleton |
 | 1 | **Data Pipeline** | Week 3–5 | ETL from CricAPI + Cricbuzz → PostgreSQL, Celery jobs |
 | 2 | **Backend API** | Week 6–8 | Django REST endpoints for matches, players, series, predictions |
 | 3 | **ML Core** | Week 9–13 | Feature engineering + model training (pre-match) |
@@ -56,85 +56,82 @@ prediction_analytics-Platform/
 
 ---
 
-## 📋 Phase 0 — Foundation & Repository Setup (Week 1–2)
+## 📋 Phase 0 — Foundation & Repository Setup ✅ COMPLETE
 
-### 0.1 Move Resources
-- [ ] Create `resources/` folder with `docs/`, `diagrams/`, `prototypes/`, `notes/`, `components/` subdirectories
-- [ ] Move all `.docx` files → `resources/docs/`
-- [ ] Move `Diagrams/` folder → `resources/diagrams/`
-- [ ] Move `api_testing_web/` → `resources/prototypes/api_testing_web/`
-- [ ] Move `get_start.txt` + `hacks.txt` → `resources/notes/`
-- [ ] Move `cricket_dpr_doc.tsx` → `resources/components/`
-- [ ] Delete `api_testing_web.zip` (already extracted)
-- [ ] Delete temp lock files `~$*.docx`
+> **Completed:** 19 March 2026 | Git commit: `eadc9bf`
+> Django check: **0 issues** | Angular build: **0 errors** | Migrations: **all applied**
 
-### 0.2 Initialize Backend (Django)
-```
-backend/
-├── manage.py
-├── requirements.txt
-├── config/              ← settings (base, dev, prod)
-├── apps/
-│   ├── core/            ← shared utils, middleware
-│   ├── accounts/        ← User auth + JWT
-│   ├── matches/         ← Match data models + APIs
-│   ├── players/         ← Player models + APIs
-│   ├── series/          ← Series models + APIs
-│   ├── predictions/     ← Prediction request/response APIs
-│   └── analytics/       ← Stats, dashboards, charts APIs
-└── ml_engine/           ← ML model loading + inference
-```
+### 0.1 Move Resources ✅
+- [x] Create `resources/` folder with `docs/`, `diagrams/`, `prototypes/`, `notes/`, `components/` subdirectories
+- [x] Move all `.docx` files → `resources/docs/`
+- [x] Move `Diagrams/` folder → `resources/diagrams/`
+- [x] Move `api_testing_web/` → `resources/prototypes/api_testing_web/`
+- [x] Move `get_start.txt` + `hacks.txt` → `resources/notes/`
+- [x] Move `cricket_dpr_doc.tsx` → `resources/components/`
 
-**Key Django apps to scaffold:**
-- `accounts` — custom User model, JWT auth (djangorestframework-simplejwt)
-- `matches` — Match, Team, Venue models
-- `players` — Player, PlayerStats models
-- `predictions` — Prediction, PredictionResult models
-- `data_pipeline` — API ingestion management commands + Celery tasks
+### 0.2 Backend (Django) ✅
+- [x] 8 apps: `core`, `accounts`, `matches`, `players`, `series`, `predictions`, `analytics`, `data_pipeline`
+- [x] Split settings (`base.py` / `dev.py` / `prod.py`)
+- [x] Custom User model (email login), JWT (simplejwt), DRF, CORS, Prometheus
+- [x] Models: User, Team, Venue, Match, MatchScorecard, Player, PlayerMatchStats, Series, PredictionJob, PredictionResult
+- [x] Admin registered for all models with search + filters
+- [x] Serializers for Matches (Team, Venue, Scorecard nested)
+- [x] ViewSets for all apps (ReadOnly + filters)
+- [x] URL routing under `/api/v1/`
+- [x] Migrations applied (SQLite dev, PostgreSQL prod-ready)
+- [x] Celery configured with `django_celery_beat` + `django_celery_results`
+- [x] `wsgi.py` + `asgi.py` updated to use split settings
+- [x] `pytest.ini` + `conftest.py` for fast in-memory test runs
 
-### 0.3 Initialize Frontend (Angular 17)
-```
-frontend/
-├── src/app/
-│   ├── core/            ← guards, interceptors, services
-│   ├── shared/          ← components, pipes, directives
-│   ├── features/
-│   │   ├── dashboard/
-│   │   ├── matches/
-│   │   ├── players/
-│   │   ├── series/
-│   │   ├── predictions/
-│   │   └── analytics/
-│   └── layout/          ← navbar, sidebar, footer
-```
+**Management commands created:**
+- [x] `python manage.py sync_matches` — pull from CricAPI + Cricbuzz
+- [x] `python manage.py seed_celery_schedules` — configure periodic tasks
+- [x] `python manage.py create_dev_superuser` — idempotent dev superuser
 
-### 0.4 Docker Compose (Dev)
-```yaml
-services:
-  db:          # PostgreSQL 16
-  redis:       # Redis 7
-  backend:     # Django + Gunicorn
-  celery:      # Celery worker
-  celery-beat: # Celery beat (scheduled tasks)
-  frontend:    # Angular dev server / Nginx
-```
+### 0.3 Frontend (Angular 17) ✅
+- [x] Angular 17 standalone SPA scaffolded (`ng new --standalone --routing --style=scss`)
+- [x] `app.config.ts` — HttpClient + JWT interceptor + animations + router
+- [x] `app.routes.ts` — 10 lazy-loaded feature routes
+- [x] **Global dark-mode SCSS design system** with CSS tokens, cards, badges, buttons, forms, tables, skeletons, animations
+- [x] `src/index.html` — full SEO meta tags, Open Graph, Twitter Card, Google Fonts preconnect
+- [x] `environments/environment.ts` + `environment.prod.ts`
+- [x] `core/models/index.ts` — TypeScript domain models (Match, Team, Player, Prediction, etc.)
+- [x] `core/services/match.service.ts` — REST API service
+- [x] `core/services/auth.service.ts` — JWT login/logout/profile with BehaviorSubject
+- [x] `core/interceptors/jwt.interceptor.ts` — attaches Bearer token to all requests
+- [x] 10 feature component stubs (Dashboard, Matches, Players, Series, Predictions, Analytics, Auth)
+- [x] `npm run build` passes — **0 TypeScript errors**, all lazy chunks generated
 
-### 0.5 Database Schema (Initial)
-```sql
--- Core tables
-teams, venues, series, players
-matches (id, team1, team2, format, date, venue, status, result)
-match_scorecards (match_id, innings, batting_stats, bowling_stats)
-player_stats (player_id, match_id, runs, wickets, sr, economy)
+### 0.4 Docker Compose (Dev) ✅
+- [x] `docker-compose.dev.yml` — db (PG16), redis, backend, celery, celery-beat, frontend
+- [x] `backend/Dockerfile` — Python 3.11 + pip install + gunicorn
+- [x] `frontend/Dockerfile.dev` — Node 20 + npm install + ng serve
 
--- Prediction tables
-prediction_jobs (match_id, requested_at, model_version, status)
-prediction_results (job_id, team1_win_prob, team2_win_prob, confidence, features_snapshot)
+### 0.5 Database Schema ✅
+- [x] Custom User model (email-based login), Team, Venue, Match, MatchScorecard
+- [x] Player, PlayerMatchStats, Series
+- [x] PredictionJob + PredictionResult (with feature snapshot JSON field)
+- [x] Indexes on `(status, match_date)` and `(format, category)`
+- [x] All migrations created and applied
 
--- User tables
-users (id, email, username, created_at)
-user_predictions (user_id, prediction_id, viewed_at)
-```
+### 0.6 Infra & DevOps ✅
+- [x] `infra/nginx/default.conf` — reverse proxy: `/api/` → Django, `/` → Angular
+- [x] `infra/prometheus/prometheus.yml` — scrape config for Django/Celery/PG/Redis
+- [x] `.github/workflows/ci.yml` — GitHub Actions: backend pytest + Angular build + Docker validation
+- [x] `Makefile` — `make setup`, `make run-backend`, `make test-backend`, `make docker-up`, etc.
+- [x] `.gitignore` — Python, Angular, Docker, ML artifacts, secrets
+- [x] `README.md` — quick start for local dev + Docker
+- [x] **Initial git commit** — `eadc9bf`
+
+### 0.7 ML Foundation ✅
+- [x] `ml/src/features/pre_match.py` — team form, H2H, venue, format features
+- [x] `ml/src/models/ensemble.py` — weighted RF+XGBoost predictor with dummy fallback
+- [x] `ml/src/models/train.py` — training script skeleton
+- [x] `ml/src/models/evaluate.py` — accuracy/AUC/Brier metrics with target thresholds
+- [x] `ml/src/utils/data_loader.py` — Django ORM → pandas DataFrame
+- [x] `ml/src/utils/preprocessor.py` — encoding, imputation, StandardScaler
+- [x] `ml/notebooks/01_eda.ipynb` — EDA notebook with Django ORM integration
+- [x] `ml/artifacts/` + `ml/notebooks/` directories created
 
 ---
 
@@ -374,15 +371,30 @@ Add to `backend/.env` and `frontend/src/environments/` — never hardcode.
 
 ---
 
-## 🎯 Immediate Next Steps (Start Today)
+## 🎯 Phase 1 — Next Steps (Data Pipeline)
 
-1. **Move resources** → create `resources/` folder structure, move all docs/diagrams/prototypes
-2. **Scaffold `backend/`** → `django-admin startproject config .` inside `backend/`
-3. **Scaffold `frontend/`** → `ng new frontend --standalone --routing --style=scss`
-4. **Write `docker-compose.dev.yml`** → db, redis, backend, frontend services
-5. **Create `.env.example`** → document all required env vars
-6. **Initialize `ml/`** → folder structure + `requirements-ml.txt`
-7. **Port normalization logic** → `api_testing_web/domain/normalize.js` → Python
+### Start Dev Server Right Now
+```powershell
+# Terminal 1 — Django backend
+cd backend
+python manage.py runserver
+# → http://localhost:8000/api/v1/
+# → http://localhost:8000/admin/  (admin@cricket.dev / admin1234)
+
+# Terminal 2 — Angular frontend
+cd frontend
+npm run start
+# → http://localhost:4200/
+```
+
+### Phase 1 Priorities
+1. **Fill in `.env`** → add your real `CRICAPI_KEY` + `CRICBUZZ_RAPIDAPI_KEY`
+2. **Test manual sync** → `python manage.py sync_matches` (confirm data flows to DB)
+3. **Seed schedules** → `python manage.py seed_celery_schedules` (configure Celery Beat)
+4. **Build normalizer** → `apps/data_pipeline/normalizers.py` — dedup matches across CricAPI + Cricbuzz
+5. **Player stats sync** → new task `sync_player_stats` — pull scorecards via `/series_info`
+6. **Redis caching** — add `@cache_page` decorators to match list endpoints
+7. **Start Docker Compose** → `docker compose -f docker-compose.dev.yml up --build`
 
 ---
 
@@ -398,4 +410,25 @@ Add to `backend/.env` and `frontend/src/environments/` — never hardcode.
 
 ---
 
-*Plan Version: 1.0 | Date: March 2026 | Author: Dev Team*
+## 📁 Key File Reference
+
+| File | Purpose |
+|------|---------|
+| `backend/manage.py` | Django CLI (`runserver`, `migrate`, `sync_matches`) |
+| `backend/config/settings/dev.py` | Dev settings: SQLite, no Redis, CELERY_ALWAYS_EAGER |
+| `backend/config/settings/prod.py` | Prod settings: PG, HSTS, secure cookies |
+| `backend/apps/data_pipeline/tasks.py` | Celery tasks for API sync |
+| `backend/apps/matches/serializers.py` | DRF serializers (nested Team/Venue) |
+| `ml/src/features/pre_match.py` | Feature engineering from Django ORM |
+| `ml/src/models/ensemble.py` | RF + XGBoost ensemble predictor |
+| `ml/notebooks/01_eda.ipynb` | Data exploration notebook |
+| `frontend/src/styles.scss` | Global dark-mode design system |
+| `frontend/src/app/app.routes.ts` | All Angular lazy-loaded routes |
+| `infra/nginx/default.conf` | Nginx reverse proxy config |
+| `.github/workflows/ci.yml` | CI/CD pipeline |
+| `Makefile` | All dev shortcuts (`make setup`, `make run-backend`, etc.) |
+| `docker-compose.dev.yml` | Full stack local environment |
+
+---
+
+*Plan Version: 1.1 | Phase 0 Completed: 19 March 2026 | Phase 1 Starting*
