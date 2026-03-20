@@ -6,14 +6,7 @@ import { CommonModule } from '@angular/common';
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet, CommonModule],
-  template: `
-    <div class="app-shell">
-      <!-- Sidebar will be added in Phase 4 -->
-      <main class="main-content" style="margin-left:0; padding-top:0;">
-        <router-outlet />
-      </main>
-    </div>
-  `,
+  template: `<router-outlet />`,
   styles: [`
     :host { display: block; }
   `]

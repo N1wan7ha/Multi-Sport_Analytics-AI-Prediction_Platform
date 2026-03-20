@@ -1,8 +1,9 @@
-﻿import { Component } from '@angular/core';
+﻿import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-register',
@@ -21,14 +22,22 @@ import { AuthService } from '../../../core/services/auth.service';
           <button class="btn btn-primary" (click)="register()" [disabled]="loading">
             {{ loading ? 'Creating account...' : 'Create account' }}
           </button>
+          <div style="display:flex; align-items:center; gap:.5rem; margin: .25rem 0;">
+            <span style="height:1px; flex:1; background:#d9d9d9;"></span>
+            <span class="text-secondary" style="font-size:.85rem;">or</span>
+            <span style="height:1px; flex:1; background:#d9d9d9;"></span>
+          </div>
+          <div id="google-register-btn" style="min-height:40px;"></div>
           <p *ngIf="message" class="text-secondary">{{ message }}</p>
           <p *ngIf="error" style="color:#d83a52;">{{ error }}</p>
+          <a routerLink="/auth/login" class="text-secondary">Already have an account? Login</a>
+          <a routerLink="/auth/profile" class="text-secondary">Go to profile</a>
         </div>
       </div>
     </div>
   `,
 })
-export class RegisterComponent {
+export class RegisterComponent implements OnInit {
   email = '';
   username = '';
   password = '';
@@ -37,6 +46,10 @@ export class RegisterComponent {
   error = '';
 
   constructor(private auth: AuthService, private router: Router) {}
+
+  ngOnInit(): void {
+    this.initializeGoogleButton();
+  }
 
   register(): void {
     if (!this.email || !this.username || !this.password) return;
@@ -47,12 +60,77 @@ export class RegisterComponent {
     this.auth.register(this.email, this.username, this.password).subscribe({
       next: () => {
         this.loading = false;
-        this.message = 'Account created. Please login.';
+        this.message = 'Account created. Check your email for verification, then login.';
         setTimeout(() => this.router.navigate(['/auth/login']), 700);
       },
       error: () => {
         this.loading = false;
         this.error = 'Registration failed. Try a different email/username.';
+      },
+    });
+  }
+
+  private initializeGoogleButton(): void {
+    if (!environment.googleClientId) {
+      return;
+    }
+
+    this.loadGoogleScript().then(() => {
+      const googleApi = (window as any).google;
+      const button = document.getElementById('google-register-btn');
+
+      if (!googleApi?.accounts?.id || !button) {
+        return;
+      }
+
+      googleApi.accounts.id.initialize({
+        client_id: environment.googleClientId,
+        callback: (response: { credential?: string }) => {
+          if (response?.credential) {
+            this.registerWithGoogle(response.credential);
+          }
+        },
+      });
+
+      button.innerHTML = '';
+      googleApi.accounts.id.renderButton(button, {
+        theme: 'outline',
+        size: 'large',
+        width: 320,
+        text: 'signup_with',
+      });
+    });
+  }
+
+  private loadGoogleScript(): Promise<void> {
+    return new Promise((resolve) => {
+      const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+      if (existing) {
+        resolve();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      document.head.appendChild(script);
+    });
+  }
+
+  private registerWithGoogle(token: string): void {
+    this.loading = true;
+    this.error = '';
+    this.message = '';
+    this.auth.googleLogin(token).subscribe({
+      next: () => {
+        this.loading = false;
+        this.router.navigate(['/dashboard']);
+      },
+      error: () => {
+        this.loading = false;
+        this.error = 'Google sign-up failed. Please try again.';
       },
     });
   }

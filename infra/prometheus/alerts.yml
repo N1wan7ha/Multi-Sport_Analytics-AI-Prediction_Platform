@@ -1,0 +1,35 @@
+groups:
+  - name: matchmind-platform-alerts
+    rules:
+      - alert: HighApiErrorRate
+        expr: |
+          (
+            sum(rate(django_http_responses_total_by_status_view_method_total{status=~"5.."}[5m]))
+            /
+            sum(rate(django_http_responses_total_by_status_view_method_total[5m]))
+          ) > 0.01
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: API error rate exceeds 1%
+          description: Django HTTP 5xx ratio has stayed above 1% for 10 minutes.
+
+      - alert: HighCeleryQueueDepth
+        expr: celery_queue_length > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Celery queue depth above 100
+          description: Celery exporter reports queue length above 100 for over 5 minutes.
+
+      - alert: HighPostgresConnectionUsage
+        expr: |
+          (sum(pg_stat_activity_count) / sum(pg_settings_max_connections)) > 0.8
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: PostgreSQL connections exceed 80%
+          description: Active PostgreSQL connections are above 80% of max_connections.

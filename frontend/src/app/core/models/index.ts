@@ -120,5 +120,34 @@ export interface User {
     id: number;
     email: string;
     username: string;
+    role: 'ADMIN' | 'USER';
+    email_verified?: boolean;
     favourite_team: string;
+    bio?: string;
+    favourite_team_ids?: number[];
+    favourite_teams?: Array<{
+        id: number;
+        name: string;
+        short_name?: string;
+    }>;
+}
+
+export interface AdminUser {
+    id: number;
+    email: string;
+    username: string;
+    role: 'ADMIN' | 'USER';
+    is_active: boolean;
+    date_joined: string;
+    last_login: string | null;
+}
+
+export interface ActivitySummary {
+    new_registrations_7d: number;
+    new_registrations_30d: number;
+    prediction_requests_total: number;
+    pre_match: number;
+    live: number;
+    active_users_7d: number;
+    syncs_24h: number;
 }

@@ -2,24 +2,23 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+rule_files:
+  - /etc/prometheus/alerts.yml
+
 scrape_configs:
-  # Django backend metrics (via django-prometheus)
   - job_name: 'django_backend'
     static_configs:
       - targets: ['backend:8000']
     metrics_path: '/metrics'
 
-  # Celery worker metrics (future: flower)
-  - job_name: 'celery'
+  - job_name: 'celery_exporter'
     static_configs:
-      - targets: ['celery:8001']
+      - targets: ['celery-exporter:9808']
 
-  # PostgreSQL metrics (future: postgres_exporter)
   - job_name: 'postgresql'
     static_configs:
-      - targets: ['db:9187']
+      - targets: ['postgres-exporter:9187']
 
-  # Redis metrics (future: redis_exporter)
   - job_name: 'redis'
     static_configs:
-      - targets: ['redis:9121']
+      - targets: ['redis-exporter:9121']

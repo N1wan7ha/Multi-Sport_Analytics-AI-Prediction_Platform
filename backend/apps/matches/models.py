@@ -5,6 +5,7 @@ from django.db import models
 class Team(models.Model):
     name = models.CharField(max_length=150, unique=True)
     short_name = models.CharField(max_length=10, blank=True)
+    logo_url = models.URLField(blank=True)
     country = models.CharField(max_length=100, blank=True)
     is_international = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

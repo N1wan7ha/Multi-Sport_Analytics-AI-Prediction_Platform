@@ -11,7 +11,7 @@ from apps.data_pipeline.normalizers import (
     normalize_cricbuzz_live_match,
 )
 from apps.matches.models import Match, MatchScorecard, Team
-from apps.players.models import PlayerMatchStats
+from apps.players.models import Player, PlayerMatchStats
 from ml_engine.training import TrainingSummary
 
 
@@ -227,3 +227,63 @@ class ModelRetrainingTaskTests(TestCase):
         self.assertEqual(result['model_type'], 'sklearn_ensemble')
         self.assertEqual(cache.get('pipeline:model_retraining:last_result')['accuracy'], 0.87)
         self.assertIsNotNone(cache.get('pipeline:model_retraining:last_run_at'))
+
+
+class RapidApiCatalogSyncTests(TestCase):
+    @patch('apps.data_pipeline.tasks._rapidapi_get_with_fallback')
+    def test_sync_rapidapi_teams_creates_team_rows(self, mock_rapidapi_get):
+        mock_rapidapi_get.side_effect = [
+            {'data': [{'name': 'India', 'shortName': 'IND', 'country': 'India'}]},
+            {'data': [{'name': 'Australia Women', 'shortName': 'AUSW', 'country': 'Australia'}]},
+            {'data': [{'name': 'Chennai Super Kings', 'shortName': 'CSK', 'country': 'India'}]},
+            {'data': [{'name': 'Mumbai', 'shortName': 'MUM', 'country': 'India'}]},
+            {'data': [{'name': 'India', 'logo': 'https://img.example.com/india.png'}]},
+        ]
+
+        result = tasks.sync_rapidapi_teams.run()
+
+        self.assertEqual(result['synced'], 4)
+        self.assertEqual(result['logos_updated'], 1)
+        self.assertTrue(Team.objects.filter(name='India').exists())
+        self.assertTrue(Team.objects.filter(name='Chennai Super Kings').exists())
+        self.assertEqual(Team.objects.get(name='India').logo_url, 'https://img.example.com/india.png')
+
+    @patch('apps.data_pipeline.tasks._rapidapi_get_with_fallback')
+    def test_sync_rapidapi_players_creates_player_rows(self, mock_rapidapi_get):
+        team = Team.objects.create(name='India')
+        mock_rapidapi_get.return_value = {
+            'data': [
+                {
+                    'id': 'p-1',
+                    'name': 'Virat Kohli',
+                    'fullName': 'Virat Kohli',
+                    'country': 'India',
+                    'role': 'batter',
+                    'battingStyle': 'Right-hand bat',
+                }
+            ]
+        }
+
+        result = tasks.sync_rapidapi_players.run(team_id=team.id)
+
+        self.assertEqual(result['synced'], 1)
+        player = Player.objects.get(name='Virat Kohli')
+        self.assertEqual(player.cricapi_id, 'p-1')
+        self.assertEqual(player.role, 'batsman')
+
+    @patch('apps.data_pipeline.tasks._rapidapi_get_with_fallback')
+    def test_sync_rapidapi_team_logos_updates_existing_team(self, mock_rapidapi_get):
+        Team.objects.create(name='India')
+        mock_rapidapi_get.return_value = {
+            'data': [
+                {
+                    'name': 'India',
+                    'logo': 'https://img.example.com/india-logo.png',
+                }
+            ]
+        }
+
+        result = tasks.sync_rapidapi_team_logos.run()
+
+        self.assertEqual(result['updated'], 1)
+        self.assertEqual(Team.objects.get(name='India').logo_url, 'https://img.example.com/india-logo.png')

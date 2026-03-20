@@ -1,0 +1,173 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: matchmind_db_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-matchmind_db}
+      POSTGRES_USER: ${DB_USER:-matchmind_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-matchmind_pwd}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-matchmind_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: matchmind_redis_prod
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: matchmind_backend_prod
+    restart: unless-stopped
+    command: sh -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p 8000 config.asgi:application"
+    env_file:
+      - .env
+    volumes:
+      - ./ml/artifacts:/app/ml_engine/artifacts
+      - backend_static:/app/staticfiles
+      - backend_media:/app/mediafiles
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: matchmind_celery_prod
+    restart: unless-stopped
+    command: celery -A config worker --loglevel=info --concurrency=4
+    env_file:
+      - .env
+    volumes:
+      - ./ml/artifacts:/app/ml_engine/artifacts
+    depends_on:
+      - backend
+      - redis
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: matchmind_celery_beat_prod
+    restart: unless-stopped
+    command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - .env
+    depends_on:
+      - backend
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: matchmind_frontend_prod
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: matchmind_nginx_prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/default.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - backend_static:/var/www/backend_static:ro
+      - backend_media:/var/www/backend_media:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_etc:/etc/letsencrypt:ro
+    depends_on:
+      - backend
+      - frontend
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: matchmind_prometheus_prod
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - backend
+      - redis-exporter
+      - postgres-exporter
+
+  grafana:
+    image: grafana/grafana:11.1.5
+    container_name: matchmind_grafana_prod
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin1234}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    container_name: matchmind_redis_exporter_prod
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    depends_on:
+      - redis
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: matchmind_postgres_exporter_prod
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: postgresql://${DB_USER:-matchmind_user}:${DB_PASSWORD:-matchmind_pwd}@db:5432/${DB_NAME:-matchmind_db}?sslmode=disable
+    depends_on:
+      - db
+
+  celery-exporter:
+    image: danihodovic/celery-exporter:latest
+    container_name: matchmind_celery_exporter_prod
+    restart: unless-stopped
+    environment:
+      CE_BROKER_URL: redis://redis:6379/1
+    depends_on:
+      - redis
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_static:
+  backend_media:
+  prometheus_data:
+  grafana_data:
+  certbot_www:
+  certbot_etc:

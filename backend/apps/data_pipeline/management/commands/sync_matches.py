@@ -14,6 +14,9 @@ from apps.data_pipeline.tasks import (
         sync_cricbuzz_live,
         sync_current_matches,
         sync_player_stats,
+    sync_rapidapi_players,
+    sync_rapidapi_team_logos,
+    sync_rapidapi_teams,
         sync_series,
         sync_unified_matches,
 )
@@ -27,7 +30,7 @@ class Command(BaseCommand):
             '--source',
             type=str,
             default='all',
-            choices=['all', 'cricapi', 'cricbuzz', 'completed', 'series', 'player_stats', 'unified'],
+            choices=['all', 'cricapi', 'cricbuzz', 'completed', 'series', 'player_stats', 'unified', 'teams', 'players', 'team_logos'],
             help='Which data source to sync (default: all)',
         )
         parser.add_argument(
@@ -36,10 +39,17 @@ class Command(BaseCommand):
             default='',
             help='Optional match id for player stats sync',
         )
+        parser.add_argument(
+            '--team-id',
+            type=int,
+            default=None,
+            help='Optional team id for RapidAPI players sync',
+        )
 
     def handle(self, *args, **options):
         source = options['source']
         match_id = options['match_id']
+        team_id = options['team_id']
 
         if source in ('all', 'cricapi'):
             self.stdout.write('🔄 Syncing current matches from CricAPI...')
@@ -77,6 +87,30 @@ class Command(BaseCommand):
             result = sync_player_stats(match_id=match_id or None)
             self.stdout.write(
                 self.style.SUCCESS(f"  ✅ Player stats: {result.get('synced', 0)} matches processed")
+            )
+
+        if source in ('all', 'teams'):
+            self.stdout.write('🔄 Syncing teams from RapidAPI...')
+            result = sync_rapidapi_teams()
+            self.stdout.write(
+                self.style.SUCCESS(f"  ✅ Teams: {result.get('synced', 0)} teams synced")
+            )
+
+        if source in ('all', 'team_logos'):
+            self.stdout.write('🔄 Syncing team logos from RapidAPI...')
+            result = sync_rapidapi_team_logos()
+            self.stdout.write(
+                self.style.SUCCESS(f"  ✅ Team logos: {result.get('updated', 0)} teams updated")
+            )
+
+        if source in ('all', 'players'):
+            if team_id is not None:
+                self.stdout.write(f'🔄 Syncing players from RapidAPI for team id {team_id}...')
+            else:
+                self.stdout.write('🔄 Syncing players from RapidAPI for top local teams...')
+            result = sync_rapidapi_players(team_id=team_id)
+            self.stdout.write(
+                self.style.SUCCESS(f"  ✅ Players: {result.get('synced', 0)} players synced")
             )
 
         if source == 'unified':

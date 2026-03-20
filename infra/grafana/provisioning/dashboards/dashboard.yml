@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: MatchMind Dashboards
+    orgId: 1
+    folder: MatchMind
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

@@ -1,0 +1,74 @@
+Get Cricket Team Logo - conn.request("GET", "/cricket-teamlogo", headers=headers)
+Get Fixtures - conn.request("GET", "/cricket-schedule", headers=headers)
+Get Live Match Score - conn.request("GET", "/cricket-livescores", headers=headers)
+Get Series - conn.request("GET", "/cricket-series", headers=headers)
+Get All Teams - conn.request("GET", "/cricket-teams", headers=headers)
+Get All Players - conn.request("GET", "/cricket-players?teamid=2", headers=headers)
+
+
+Fixtures
+Fixtures/ Get Women List - conn.request("GET", "/cricket-schedule-women", headers=headers)
+Fixtures/ Get League List - conn.request("GET", "/cricket-schedule-league", headers=headers)
+Fixtures/ Get Domestic List - conn.request("GET", "/cricket-schedule-domestic", headers=headers)
+Fixtures/ Get International List - conn.request("GET", "/cricket-schedule-international", headers=headers)
+Fixtures/ Get All List - conn.request("GET", "/cricket-schedule-all", headers=headers)
+
+Live Scores
+Get Current Live Scores/Matches - conn.request("GET", "/cricket-livescores", headers=headers)
+
+
+Schedules
+Schedules/ Get Women List - conn.request("GET", "/cricket-schedule-women", headers=headers)
+Schedules/ Get League List - conn.request("GET", "/cricket-schedule-league", headers=headers)
+Schedules/ Get Domestic List - conn.request("GET", "/cricket-schedule-domestic", headers=headers)
+Schedules/ Get International List - conn.request("GET", "/cricket-schedule-international", headers=headers)
+Schedules/ Get All List - conn.request("GET", "/cricket-schedule", headers=headers)
+
+
+Matches
+Matches/ Get Scoreboard - conn.request("GET", "/cricket-match-scoreboard?matchid=102040", headers=headers)
+Matches/ Get Info - conn.request("GET", "/cricket-match-info?matchid=102040", headers=headers)
+Matches/ Get Upcoming List - conn.request("GET", "/cricket-matches-upcoming", headers=headers)
+Matches/ Get Recent List - conn.request("GET", "/cricket-matches-recent", headers=headers)
+Matches/ Get Live List - conn.request("GET", "/cricket-matches-live", headers=headers)
+Get Matches List - conn.request("GET", "/cricket-matches-upcoming", headers=headers)
+
+
+Series
+Series/ Get Women List - conn.request("GET", "/cricket-series-women", headers=headers)
+Series/ Get Leagues List - conn.request("GET", "/cricket-series-leagues", headers=headers)
+Series/ Get Domestics List - conn.request("GET", "/cricket-series-domestic", headers=headers)
+Series/ Get International List - conn.request("GET", "/cricket-series-international", headers=headers)
+Series/ Get All List - conn.request("GET", "/cricket-series", headers=headers)
+Get Series List - conn.request("GET", "/cricket-series", headers=headers)
+
+
+Teams
+Teams/ Get Women List - conn.request("GET", "/cricket-teams-women", headers=headers)
+Teams/ Get League List - conn.request("GET", "/cricket-teams-league", headers=headers)
+Teams/ Get Domestic List - conn.request("GET", "/cricket-teams-domestic", headers=headers)
+Teams/ Get International List - conn.request("GET", "/cricket-teams", headers=headers)
+
+
+Players
+Players/ Get List - conn.request("GET", "/cricket-players?teamid=2", headers=headers)
+
+
+
+
+sample
+import http.client
+
+conn = http.client.HTTPSConnection("cricket-api-free-data.p.rapidapi.com")
+
+headers = {
+    'x-rapidapi-host': "cricket-api-free-data.p.rapidapi.com",
+    'Content-Type': "application/json"
+}
+
+conn.request("GET", "/cricket-players?teamid=2", headers=headers)
+
+res = conn.getresponse()
+data = res.read()
+
+print(data.decode("utf-8"))

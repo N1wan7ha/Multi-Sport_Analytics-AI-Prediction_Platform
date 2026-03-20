@@ -20,6 +20,7 @@ DJANGO_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'django.contrib.sites',
     'daphne',
     'django.contrib.staticfiles',
 ]
@@ -30,6 +31,10 @@ THIRD_PARTY_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'django_filters',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
     'django_celery_beat',
     'django_celery_results',
     'django_prometheus',
@@ -44,6 +49,7 @@ LOCAL_APPS = [
     'apps.predictions',
     'apps.analytics',
     'apps.data_pipeline',
+    'apps.admin_api',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -53,11 +59,13 @@ MIDDLEWARE = [
     'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'apps.core.middleware.SecurityHeadersMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_prometheus.middleware.PrometheusAfterMiddleware',
@@ -113,6 +121,35 @@ CACHES = {
 
 # ─── Auth ─────────────────────────────────────────────────
 AUTH_USER_MODEL = 'accounts.User'
+SITE_ID = config('SITE_ID', default=1, cast=int)
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_UNIQUE_EMAIL = True
+
+GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
+GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='')
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:4200')
+EMAIL_VERIFICATION_TOKEN_MAX_AGE = config('EMAIL_VERIFICATION_TOKEN_MAX_AGE', default=86400, cast=int)
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': GOOGLE_CLIENT_ID,
+            'secret': GOOGLE_CLIENT_SECRET,
+            'key': '',
+        },
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+    }
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -156,6 +193,7 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'TOKEN_OBTAIN_SERIALIZER': 'apps.accounts.serializers.CustomTokenObtainPairSerializer',
 }
 
 # ─── CORS ─────────────────────────────────────────────────
@@ -164,6 +202,14 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:4200',
 ]
 CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = config(
+    'DJANGO_CSRF_TRUSTED_ORIGINS',
+    default='http://localhost:4200,http://127.0.0.1:4200'
+).split(',')
+
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
+SECURE_CROSS_ORIGIN_RESOURCE_POLICY = 'same-origin'
 
 # ─── Celery ───────────────────────────────────────────────
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/1')
@@ -190,14 +236,23 @@ CRICAPI_KEY = config('CRICAPI_KEY', default='')
 CRICAPI_BASE_URL = config('CRICAPI_BASE_URL', default='https://api.cricapi.com/v1')
 
 CRICBUZZ_RAPIDAPI_KEY = config('CRICBUZZ_RAPIDAPI_KEY', default='')
-CRICBUZZ_RAPIDAPI_HOST = config('CRICBUZZ_RAPIDAPI_HOST', default='cricbuzz-cricket2.p.rapidapi.com')
-CRICBUZZ_BASE_URL = config('CRICBUZZ_BASE_URL', default='https://cricbuzz-cricket2.p.rapidapi.com')
+CRICBUZZ_RAPIDAPI_HOST = config('CRICBUZZ_RAPIDAPI_HOST', default='cricket-api-free-data.p.rapidapi.com')
+CRICBUZZ_BASE_URL = config('CRICBUZZ_BASE_URL', default='https://cricket-api-free-data.p.rapidapi.com')
 
 # ─── ML Engine ────────────────────────────────────────────
 ML_MODEL_PATH = config('ML_MODEL_PATH', default=str(BASE_DIR / 'ml_engine' / 'artifacts'))
 ML_MODEL_VERSION = config('ML_MODEL_VERSION', default='v1.0')
 LIVE_PREDICTION_OVER_STEP = config('LIVE_PREDICTION_OVER_STEP', default=2, cast=int)
 LIVE_PREDICTION_SCHEDULE_MINUTES = config('LIVE_PREDICTION_SCHEDULE_MINUTES', default=2, cast=int)
+MATCH_START_NOTIFICATION_WINDOW_MINUTES = config('MATCH_START_NOTIFICATION_WINDOW_MINUTES', default=30, cast=int)
+
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='no-reply@matchmind.dev')
 
 # ─── Internationalisation ─────────────────────────────────
 LANGUAGE_CODE = 'en-us'

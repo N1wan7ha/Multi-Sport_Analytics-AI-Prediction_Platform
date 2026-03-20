@@ -1,6 +1,6 @@
 # 🏏 MatchMind — Multi-Sport Prediction Platform Development Plan
 
-> **Status:** ✅ Phase 0 DONE (19 Mar 2026) → ✅ Phase 1 DONE (19 Mar 2026) → ✅ Phase 2 DONE (20 Mar 2026) → ✅ Phase 3 DONE (20 Mar 2026) → ✅ Phase 4 DONE (20 Mar 2026) → ✅ Phase 5 DONE (20 Mar 2026)  
+> **Status:** ✅ Phase 0 DONE (19 Mar 2026) → ✅ Phase 1 DONE (19 Mar 2026) → ✅ Phase 2 DONE (20 Mar 2026) → ✅ Phase 3 DONE (20 Mar 2026) → ✅ Phase 4 DONE (20 Mar 2026) → ✅ Phase 5 DONE (20 Mar 2026) → ✅ Phase 6 DONE (20 Mar 2026)  
 > **Stack:** Angular 17 · Django 5 · PostgreSQL 16 · Redis · Celery · Docker · scikit-learn / XGBoost / TensorFlow  
 > **Goal:** 86%+ match prediction accuracy, 5,000+ users, 99.5% uptime
 
@@ -51,7 +51,7 @@ matchmind/
 | 3 | **ML Core** ✅ | Week 9–13 | Feature engineering + model training (pre-match) |
 | 4 | **Frontend** ✅ | Week 14–17 | Angular SPA with dashboard, predictions, analytics |
 | 5 | **Live Prediction** ✅ | Week 18–20 | Real-time in-match prediction (run rate, wickets) |
-| 6 | **DevOps & Monitoring** | Week 21–22 | Production Docker Compose, Prometheus, Grafana |
+| 6 | **DevOps & Monitoring** ✅ | Week 21–22 | Production Docker Compose, Prometheus, Grafana |
 | 7 | **Polish & Launch** | Week 23–26 | Auth, user profiles, performance tuning, soft launch |
 
 ---
@@ -310,7 +310,7 @@ ml/
 
 ---
 
-## 📋 Phase 5 — Live Prediction Engine (Week 18–20)
+## 📋 Phase 5 — Live Prediction Engine (Week 18–20) ✅ COMPLETE
 
 - Celery task: triggered every over (6 balls) for live matches
 - WebSocket endpoint (Django Channels) → push updated probabilities to Angular
@@ -320,7 +320,7 @@ ml/
 
 ---
 
-## 📋 Phase 6 — DevOps & Monitoring (Week 21–22)
+## 📋 Phase 6 — DevOps & Monitoring (Week 21–22) ✅ COMPLETE
 
 ### 6.1 Docker Compose (Production)
 ```
@@ -351,7 +351,7 @@ jobs:
 
 ## 📋 Phase 7 — Polish & Launch (Week 23–26)
 
-- [ ] User accounts: save favourite teams, prediction history
+- [x] User accounts: save favourite teams, prediction history
 - [ ] Email notifications: match start alerts, prediction ready
 - [ ] API key rotation: environment-based config (not hardcoded)
 - [ ] Performance audit: Lighthouse score ≥ 90

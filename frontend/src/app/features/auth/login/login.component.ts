@@ -1,8 +1,9 @@
-﻿import { Component } from '@angular/core';
+﻿import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -20,19 +21,31 @@ import { AuthService } from '../../../core/services/auth.service';
           <button class="btn btn-primary" (click)="login()" [disabled]="loading">
             {{ loading ? 'Signing in...' : 'Sign in' }}
           </button>
+          <div style="display:flex; align-items:center; gap:.5rem; margin: .25rem 0;">
+            <span style="height:1px; flex:1; background:#d9d9d9;"></span>
+            <span class="text-secondary" style="font-size:.85rem;">or</span>
+            <span style="height:1px; flex:1; background:#d9d9d9;"></span>
+          </div>
+          <div id="google-login-btn" style="min-height:40px;"></div>
           <p *ngIf="error" style="color:#d83a52;">{{ error }}</p>
+          <a routerLink="/auth/register" class="text-secondary">No account? Register</a>
+          <a routerLink="/auth/profile" class="text-secondary">Go to profile</a>
         </div>
       </div>
     </div>
   `,
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   email = '';
   password = '';
   loading = false;
   error = '';
 
   constructor(private auth: AuthService, private router: Router) {}
+
+  ngOnInit(): void {
+    this.initializeGoogleButton();
+  }
 
   login(): void {
     if (!this.email || !this.password) return;
@@ -46,6 +59,70 @@ export class LoginComponent {
       error: () => {
         this.loading = false;
         this.error = 'Login failed. Check your credentials.';
+      },
+    });
+  }
+
+  private initializeGoogleButton(): void {
+    if (!environment.googleClientId) {
+      return;
+    }
+
+    this.loadGoogleScript().then(() => {
+      const googleApi = (window as any).google;
+      const button = document.getElementById('google-login-btn');
+
+      if (!googleApi?.accounts?.id || !button) {
+        return;
+      }
+
+      googleApi.accounts.id.initialize({
+        client_id: environment.googleClientId,
+        callback: (response: { credential?: string }) => {
+          if (response?.credential) {
+            this.loginWithGoogle(response.credential);
+          }
+        },
+      });
+
+      button.innerHTML = '';
+      googleApi.accounts.id.renderButton(button, {
+        theme: 'outline',
+        size: 'large',
+        width: 320,
+        text: 'continue_with',
+      });
+    });
+  }
+
+  private loadGoogleScript(): Promise<void> {
+    return new Promise((resolve) => {
+      const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+      if (existing) {
+        resolve();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      document.head.appendChild(script);
+    });
+  }
+
+  private loginWithGoogle(token: string): void {
+    this.loading = true;
+    this.error = '';
+    this.auth.googleLogin(token).subscribe({
+      next: () => {
+        this.loading = false;
+        this.router.navigate(['/dashboard']);
+      },
+      error: () => {
+        this.loading = false;
+        this.error = 'Google sign-in failed. Please try again.';
       },
     });
   }

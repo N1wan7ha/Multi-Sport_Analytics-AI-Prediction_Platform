@@ -62,3 +62,4 @@ secrets.yaml
 # ─── Temp lock files (Word) ────────────────────
 ~$*.docx
 
+imp.md

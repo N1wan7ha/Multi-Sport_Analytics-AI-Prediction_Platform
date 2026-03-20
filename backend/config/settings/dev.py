@@ -34,5 +34,8 @@ CHANNEL_LAYERS = {
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
+# Route emails to console during development.
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
 # Keep ML artifacts local in non-Docker dev sessions.
 ML_MODEL_PATH = str(BASE_DIR / 'ml_engine' / 'artifacts')

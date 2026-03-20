@@ -80,6 +80,36 @@ class Command(BaseCommand):
         )
         self.stdout.write('  ✅ sync_player_stats — every 6 hours')
 
+        # ── Every 5 minutes: prediction-ready email notifications ─
+        prediction_notify_5min, _ = IntervalSchedule.objects.get_or_create(
+            every=5, period=IntervalSchedule.MINUTES
+        )
+        PeriodicTask.objects.update_or_create(
+            name='Send Prediction Ready Notifications (5min)',
+            defaults={
+                'task': 'apps.accounts.tasks.send_prediction_ready_notifications',
+                'interval': prediction_notify_5min,
+                'args': json.dumps([]),
+                'enabled': True,
+            }
+        )
+        self.stdout.write('  ✅ send_prediction_ready_notifications — every 5 min')
+
+        # ── Every 10 minutes: match-start reminder emails ─
+        match_start_10min, _ = IntervalSchedule.objects.get_or_create(
+            every=10, period=IntervalSchedule.MINUTES
+        )
+        PeriodicTask.objects.update_or_create(
+            name='Send Match Start Notifications (10min)',
+            defaults={
+                'task': 'apps.accounts.tasks.send_match_start_notifications',
+                'interval': match_start_10min,
+                'args': json.dumps([]),
+                'enabled': True,
+            }
+        )
+        self.stdout.write('  ✅ send_match_start_notifications — every 10 min')
+
         # ── Daily at midnight: run model retraining ─────────
         midnight, _ = CrontabSchedule.objects.get_or_create(
             minute='0',
