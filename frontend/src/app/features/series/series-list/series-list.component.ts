@@ -14,11 +14,14 @@ import { ApiService, Series } from '../../../core/services/api.service';
         <p class="text-secondary" style="margin-top:0.5rem">Browse synced cricket series.</p>
 
         <div style="margin-top:1rem;">
-          <div *ngFor="let series of seriesList" style="padding:.75rem 0; border-bottom:1px solid var(--border);">
-            <strong>{{ series.name }}</strong>
+          <p *ngIf="loading" class="text-secondary">Loading series...</p>
+          <p *ngIf="error" class="status-error">{{ error }}</p>
+
+          <div *ngFor="let series of seriesList" class="list-row">
+            <a [routerLink]="['/series', series.id]"><strong>{{ series.name }}</strong></a>
             <div class="text-secondary">ID: {{ series.id }}</div>
           </div>
-          <p *ngIf="seriesList.length === 0" class="text-secondary">No series available.</p>
+          <p *ngIf="!loading && !error && seriesList.length === 0" class="text-secondary">No series available.</p>
         </div>
       </div>
     </div>
@@ -26,16 +29,23 @@ import { ApiService, Series } from '../../../core/services/api.service';
 })
 export class SeriesListComponent implements OnInit {
   seriesList: Series[] = [];
+  loading = false;
+  error = '';
 
   constructor(private api: ApiService) {}
 
   ngOnInit(): void {
+    this.loading = true;
+    this.error = '';
     this.api.getSeries().subscribe({
       next: (response) => {
         this.seriesList = response.results;
+        this.loading = false;
       },
       error: () => {
         this.seriesList = [];
+        this.loading = false;
+        this.error = 'Unable to load series right now.';
       },
     });
   }

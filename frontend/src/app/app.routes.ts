@@ -34,6 +34,12 @@ export const routes: Routes = [
     title: 'Series — MatchMind',
   },
   {
+    path: 'series/:id',
+    loadComponent: () =>
+      import('./features/series/series-detail/series-detail.component').then(m => m.SeriesDetailComponent),
+    title: 'Series Detail — MatchMind',
+  },
+  {
     path: 'players',
     loadComponent: () =>
       import('./features/players/player-list/player-list.component').then(m => m.PlayerListComponent),
