@@ -1,0 +1,10 @@
+{
+  "sample_count": 30,
+  "model_type": "sklearn_ensemble",
+  "accuracy": 0.375,
+  "auc_roc": 0.4375,
+  "brier_score": 0.3828,
+  "version": "v1.0",
+  "saved_at": "2026-03-20T04:35:46.388864+00:00",
+  "bundle_file": "model_bundle.pkl"
+}

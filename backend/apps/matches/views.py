@@ -10,11 +10,11 @@ from .serializers import MatchSerializer
 
 class MatchViewSet(viewsets.ReadOnlyModelViewSet):
     """List and retrieve matches with filtering."""
-    queryset = Match.objects.select_related('team1', 'team2', 'venue').order_by('-match_date')
+    queryset = Match.objects.select_related('team1', 'team2', 'venue').prefetch_related('scorecards').order_by('-match_date')
     serializer_class = MatchSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'format', 'category']
+    filterset_fields = ['status', 'format', 'category', 'match_date']
     search_fields = ['name', 'team1__name', 'team2__name']
     ordering_fields = ['match_date', 'created_at']
 

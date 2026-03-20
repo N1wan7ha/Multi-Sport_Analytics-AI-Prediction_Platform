@@ -12,6 +12,7 @@ from apps.data_pipeline.normalizers import (
 )
 from apps.matches.models import Match, MatchScorecard, Team
 from apps.players.models import PlayerMatchStats
+from ml_engine.training import TrainingSummary
 
 
 class NormalizerTests(TestCase):
@@ -205,3 +206,24 @@ class PipelineStatusEndpointTests(TestCase):
         self.assertIn('pipeline', response.data)
         self.assertEqual(response.data['pipeline']['current_matches']['last_sync_count'], 12)
         self.assertEqual(response.data['pipeline']['current_matches']['last_sync_at'], '2026-03-19T10:00:00Z')
+
+
+class ModelRetrainingTaskTests(TestCase):
+    @patch('apps.data_pipeline.tasks.train_models_from_matches')
+    def test_run_model_retraining_pipeline_writes_cache(self, mock_train_models):
+        mock_train_models.return_value = TrainingSummary(
+            version='v1.0',
+            sample_count=120,
+            model_type='sklearn_ensemble',
+            accuracy=0.87,
+            auc_roc=0.91,
+            brier_score=0.18,
+        )
+
+        result = tasks.run_model_retraining_pipeline.run()
+
+        self.assertEqual(result['version'], 'v1.0')
+        self.assertEqual(result['sample_count'], 120)
+        self.assertEqual(result['model_type'], 'sklearn_ensemble')
+        self.assertEqual(cache.get('pipeline:model_retraining:last_result')['accuracy'], 0.87)
+        self.assertIsNotNone(cache.get('pipeline:model_retraining:last_run_at'))

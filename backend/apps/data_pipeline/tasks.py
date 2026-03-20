@@ -7,6 +7,7 @@ from celery import shared_task
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
+from ml_engine.training import train_models_from_matches
 
 from .normalizers import (
     merge_and_dedupe_matches,
@@ -345,9 +346,20 @@ def sync_player_stats(self, match_id: str | None = None):
 
 @shared_task
 def run_model_retraining_pipeline():
-    """Placeholder for daily model retraining orchestration in Phase 3."""
+    """Train and persist the latest pre-match models from completed match history."""
     logger.info("run_model_retraining_pipeline triggered")
-    return {'started': True, 'note': 'Phase 3 will wire this task to ML training scripts.'}
+    summary = train_models_from_matches(settings.ML_MODEL_PATH, version=settings.ML_MODEL_VERSION)
+    payload = {
+        'version': summary.version,
+        'sample_count': summary.sample_count,
+        'model_type': summary.model_type,
+        'accuracy': summary.accuracy,
+        'auc_roc': summary.auc_roc,
+        'brier_score': summary.brier_score,
+    }
+    cache.set('pipeline:model_retraining:last_result', payload, 24 * 60 * 60)
+    cache.set('pipeline:model_retraining:last_run_at', timezone.now().isoformat(), 24 * 60 * 60)
+    return payload
 
 
 @shared_task

@@ -1,10 +1,7 @@
-"""
-ML Ensemble Predictor — MatchMind (Multi-Sport Prediction Platform)
-
-Loads trained models from artifacts/ and returns pre-match win probabilities.
-"""
+"""ML ensemble predictor backed by persisted Phase 3 bundle artifacts."""
 import os
 import logging
+import pickle
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -20,11 +17,8 @@ def _load_models(model_path: str, version: str):
         return _models[version]
 
     try:
-        import joblib
-        models = {
-            'rf': joblib.load(os.path.join(model_path, version, 'random_forest.pkl')),
-            'xgb': joblib.load(os.path.join(model_path, version, 'xgboost.pkl')),
-        }
+        with open(os.path.join(model_path, version, 'model_bundle.pkl'), 'rb') as fp:
+            models = pickle.load(fp)
         _models[version] = models
         logger.info(f"Loaded ML models version {version}")
         return models
@@ -54,18 +48,17 @@ def predict_pre_match(features_array: np.ndarray, model_path: str, version: str 
             'is_dummy': True,
         }
 
-    # Ensemble predictions
-    weights = {'rf': 0.30, 'xgb': 0.35}  # Phase 3: add neural net (0.25) + meta (0.10)
-
-    team1_probs = []
-    for name, model in models.items():
-        prob = model.predict_proba(features_array)[0][1]  # P(team1 wins)
-        team1_probs.append((prob, weights[name]))
-
-    # Weighted average
-    total_weight = sum(w for _, w in team1_probs)
-    team1_prob = sum(p * w for p, w in team1_probs) / total_weight
-    team1_prob = float(np.clip(team1_prob, 0.05, 0.95))
+    if models.get('type') == 'sklearn_ensemble':
+        rf = models['rf']
+        gb = models['gb']
+        weights = models.get('weights', {'rf': 0.6, 'gb': 0.4})
+        rf_prob = float(rf.predict_proba(features_array)[0][1])
+        gb_prob = float(gb.predict_proba(features_array)[0][1])
+        team1_prob = (weights['rf'] * rf_prob) + (weights['gb'] * gb_prob)
+        team1_prob = float(np.clip(team1_prob, 0.05, 0.95))
+    else:
+        bias = float(models.get('bias', 0.5))
+        team1_prob = float(np.clip((0.7 * bias) + 0.15, 0.05, 0.95))
 
     # Confidence: deviation from 0.5 (how decisive the prediction is)
     confidence = min(abs(team1_prob - 0.5) * 2 + 0.3, 1.0)
