@@ -8,6 +8,7 @@ Usage:
   python manage.py seed_celery_schedules
 """
 from django.core.management.base import BaseCommand
+from django.conf import settings
 from django_celery_beat.models import PeriodicTask, IntervalSchedule, CrontabSchedule
 import json
 
@@ -30,6 +31,24 @@ class Command(BaseCommand):
             }
         )
         self.stdout.write('  ✅ sync_cricbuzz_live — every 5 min')
+
+        # ── Every N minutes: auto-trigger live predictions ─
+        every_live_prediction_minutes, _ = IntervalSchedule.objects.get_or_create(
+            every=max(1, int(getattr(settings, 'LIVE_PREDICTION_SCHEDULE_MINUTES', 2))),
+            period=IntervalSchedule.MINUTES,
+        )
+        PeriodicTask.objects.update_or_create(
+            name='Auto Trigger Live Predictions',
+            defaults={
+                'task': 'apps.predictions.tasks.schedule_live_predictions',
+                'interval': every_live_prediction_minutes,
+                'args': json.dumps([]),
+                'enabled': True,
+            }
+        )
+        self.stdout.write(
+            f"  ✅ schedule_live_predictions — every {max(1, int(getattr(settings, 'LIVE_PREDICTION_SCHEDULE_MINUTES', 2)))} min"
+        )
 
         # ── Every 1 hour: sync completed match results ──────
         every_1h, _ = IntervalSchedule.objects.get_or_create(

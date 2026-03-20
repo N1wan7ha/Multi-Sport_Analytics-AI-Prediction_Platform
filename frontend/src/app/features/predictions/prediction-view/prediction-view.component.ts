@@ -1,19 +1,40 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { ApiService, PredictionJob } from '../../../core/services/api.service';
 
 @Component({
   selector: 'app-prediction-view',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <div class="page-container animate-fade-up">
       <div class="card">
         <h1>Prediction</h1>
         <p class="text-secondary" style="margin-top:0.5rem">
-          Generate a pre-match prediction and inspect model output.
+          Generate pre-match or live predictions and inspect model output.
         </p>
+
+        <div style="margin-top:1rem; display:flex; gap:.5rem; flex-wrap:wrap;">
+          <button class="btn" [class.btn-primary]="predictionType === 'pre_match'" [class.btn-secondary]="predictionType !== 'pre_match'" (click)="setPredictionType('pre_match')">
+            Pre-Match
+          </button>
+          <button class="btn" [class.btn-primary]="predictionType === 'live'" [class.btn-secondary]="predictionType !== 'live'" (click)="setPredictionType('live')">
+            Live
+          </button>
+        </div>
+
+        <div *ngIf="predictionType === 'live'" style="margin-top:1rem; display:grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap:.75rem;">
+          <label>
+            <span class="text-secondary" style="display:block; margin-bottom:.25rem;">Current Over</span>
+            <input class="input" type="number" min="0" [(ngModel)]="currentOver" placeholder="e.g. 14" />
+          </label>
+          <label>
+            <span class="text-secondary" style="display:block; margin-bottom:.25rem;">Current Score</span>
+            <input class="input" type="text" [(ngModel)]="currentScore" placeholder="e.g. 122/3" />
+          </label>
+        </div>
 
         <div style="margin-top:1rem; display:flex; gap:.75rem; flex-wrap:wrap;">
           <button class="btn btn-primary" [disabled]="loading || !matchId" (click)="runPrediction()">
@@ -38,6 +59,9 @@ import { ApiService, PredictionJob } from '../../../core/services/api.service';
             <p><strong>{{ job.result.team1.name }}:</strong> {{ (job.result.team1_win_probability * 100) | number:'1.0-2' }}%</p>
             <p><strong>{{ job.result.team2.name }}:</strong> {{ (job.result.team2_win_probability * 100) | number:'1.0-2' }}%</p>
             <p><strong>Confidence:</strong> {{ job.result.confidence_score }}</p>
+            <p *ngIf="job.result.current_over !== null && job.result.current_over !== undefined">
+              <strong>Live:</strong> Over {{ job.result.current_over }} · Score {{ job.result.current_score || '-' }}
+            </p>
             <p class="text-secondary"><strong>Model:</strong> {{ job.result.feature_snapshot['model_kind'] || 'unknown' }}</p>
           </div>
         </div>
@@ -50,6 +74,9 @@ export class PredictionViewComponent implements OnInit, OnDestroy {
   job: PredictionJob | null = null;
   loading = false;
   error = '';
+  predictionType: 'pre_match' | 'live' = 'pre_match';
+  currentOver: number | null = null;
+  currentScore = '';
   private pollId: ReturnType<typeof setInterval> | null = null;
 
   constructor(private route: ActivatedRoute, private api: ApiService) {}
@@ -67,10 +94,21 @@ export class PredictionViewComponent implements OnInit, OnDestroy {
 
   runPrediction(): void {
     if (!this.matchId || this.loading) return;
+    if (this.predictionType === 'live' && (this.currentOver === null || this.currentOver < 0)) {
+      this.error = 'Current over is required for live predictions.';
+      return;
+    }
+
     this.loading = true;
     this.error = '';
 
-    this.api.createPrediction(this.matchId, 'pre_match').subscribe({
+    this.api.createPrediction(
+      this.matchId,
+      this.predictionType,
+      this.predictionType === 'live' && this.currentOver !== null
+        ? { current_over: this.currentOver, current_score: this.currentScore || '' }
+        : undefined
+    ).subscribe({
       next: (created) => {
         this.job = created;
         this.loading = false;
@@ -81,6 +119,11 @@ export class PredictionViewComponent implements OnInit, OnDestroy {
         this.error = 'Prediction request failed. Please login and try again.';
       },
     });
+  }
+
+  setPredictionType(type: 'pre_match' | 'live'): void {
+    this.predictionType = type;
+    this.error = '';
   }
 
   private startPolling(jobId: number): void {

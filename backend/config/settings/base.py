@@ -20,10 +20,12 @@ DJANGO_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'daphne',
     'django.contrib.staticfiles',
 ]
 
 THIRD_PARTY_APPS = [
+    'channels',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
@@ -80,6 +82,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
 
 # ─── Database ─────────────────────────────────────────────
 DATABASES = {
@@ -173,6 +176,15 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 min max task runtime
 
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [config('REDIS_URL', default='redis://localhost:6379/0')],
+        },
+    },
+}
+
 # ─── External APIs ────────────────────────────────────────
 CRICAPI_KEY = config('CRICAPI_KEY', default='')
 CRICAPI_BASE_URL = config('CRICAPI_BASE_URL', default='https://api.cricapi.com/v1')
@@ -184,6 +196,8 @@ CRICBUZZ_BASE_URL = config('CRICBUZZ_BASE_URL', default='https://cricbuzz-cricke
 # ─── ML Engine ────────────────────────────────────────────
 ML_MODEL_PATH = config('ML_MODEL_PATH', default=str(BASE_DIR / 'ml_engine' / 'artifacts'))
 ML_MODEL_VERSION = config('ML_MODEL_VERSION', default='v1.0')
+LIVE_PREDICTION_OVER_STEP = config('LIVE_PREDICTION_OVER_STEP', default=2, cast=int)
+LIVE_PREDICTION_SCHEDULE_MINUTES = config('LIVE_PREDICTION_SCHEDULE_MINUTES', default=2, cast=int)
 
 # ─── Internationalisation ─────────────────────────────────
 LANGUAGE_CODE = 'en-us'

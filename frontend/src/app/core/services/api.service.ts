@@ -95,6 +95,8 @@ export interface PredictionResult {
   key_factors: Record<string, any>;
   feature_snapshot: Record<string, any>;
   model_kind?: string;
+  current_over?: number | null;
+  current_score?: string;
 }
 
 export interface TeamAnalytics {
@@ -181,10 +183,15 @@ export class ApiService {
   }
 
   // Predictions
-  createPrediction(matchId: number, predictionType: string): Observable<PredictionJob> {
+  createPrediction(
+    matchId: number,
+    predictionType: string,
+    liveContext?: { current_over: number; current_score?: string }
+  ): Observable<PredictionJob> {
     return this.http.post<PredictionJob>(`${API_BASE_URL}/predictions/`, {
       match: matchId,
       prediction_type: predictionType,
+      ...(liveContext ?? {}),
     });
   }
 
@@ -192,8 +199,10 @@ export class ApiService {
     return this.http.get<PredictionJob>(`${API_BASE_URL}/predictions/${id}/`);
   }
 
-  getLatestPredictionForMatch(matchId: number): Observable<PredictionJob> {
-    return this.http.get<PredictionJob>(`${API_BASE_URL}/predictions/match/${matchId}/`);
+  getLatestPredictionForMatch(matchId: number, predictionType?: 'pre_match' | 'live'): Observable<PredictionJob> {
+    let params = new HttpParams();
+    if (predictionType) params = params.set('prediction_type', predictionType);
+    return this.http.get<PredictionJob>(`${API_BASE_URL}/predictions/match/${matchId}/`, { params });
   }
 
   // Analytics

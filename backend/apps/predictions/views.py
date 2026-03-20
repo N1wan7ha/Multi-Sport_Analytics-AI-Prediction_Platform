@@ -34,6 +34,14 @@ class PredictionJobSerializer(serializers.ModelSerializer):
 class PredictionCreateSerializer(serializers.Serializer):
     match = serializers.PrimaryKeyRelatedField(queryset=Match.objects.all())
     prediction_type = serializers.ChoiceField(choices=PredictionJob.TYPE_CHOICES, default='pre_match')
+    current_over = serializers.IntegerField(required=False, min_value=0)
+    current_score = serializers.CharField(required=False, allow_blank=True, max_length=50)
+
+    def validate(self, attrs):
+        prediction_type = attrs.get('prediction_type', 'pre_match')
+        if prediction_type == 'live' and 'current_over' not in attrs:
+            raise serializers.ValidationError({'current_over': 'This field is required for live predictions.'})
+        return attrs
 
     def create(self, validated_data):
         request = self.context['request']
@@ -45,7 +53,11 @@ class PredictionCreateSerializer(serializers.Serializer):
         )
 
         # In dev, Celery eager mode executes this immediately; in prod it is async.
-        task_result = process_prediction_job.delay(job.id)
+        task_result = process_prediction_job.delay(
+            job.id,
+            validated_data.get('current_over'),
+            validated_data.get('current_score', ''),
+        )
         job.celery_task_id = str(task_result.id)
         job.save(update_fields=['celery_task_id'])
         job.refresh_from_db()
@@ -74,10 +86,14 @@ class MatchLatestPredictionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, match_id):
+        prediction_type = request.query_params.get('prediction_type')
         job = PredictionJob.objects.select_related('result').filter(
             match_id=match_id,
             status='complete',
-        ).order_by('-requested_at').first()
+        )
+        if prediction_type in {'pre_match', 'live'}:
+            job = job.filter(prediction_type=prediction_type)
+        job = job.order_by('-requested_at').first()
         if not job:
             raise NotFound('No prediction available yet.')
         return Response(PredictionJobSerializer(job).data)

@@ -262,83 +262,90 @@ def sync_player_stats(self, match_id: str | None = None):
             )
 
         synced = 0
+        failed = 0
         for source_match_id in targets:
-            payload = _cricapi_get('/match_scorecard', {'id': source_match_id})
-            rows = _iter_scorecard_rows(payload)
-            if not rows:
-                continue
+            try:
+                payload = _cricapi_get('/match_scorecard', {'id': source_match_id})
+                rows = _iter_scorecard_rows(payload)
+                if not rows:
+                    continue
 
-            match_obj = Match.objects.filter(cricapi_id=source_match_id).first()
-            if not match_obj and source_match_id.isdigit():
-                match_obj = Match.objects.filter(id=int(source_match_id)).first()
-            if not match_obj:
-                continue
+                match_obj = Match.objects.filter(cricapi_id=source_match_id).first()
+                if not match_obj and source_match_id.isdigit():
+                    match_obj = Match.objects.filter(id=int(source_match_id)).first()
+                if not match_obj:
+                    continue
 
-            for innings_index, innings in enumerate(rows, start=1):
-                innings_num = innings.get('inningsNumber') or innings.get('inningsId') or innings_index
-                batting_team_name = innings.get('batTeamName') or innings.get('battingTeam') or ''
-                batting_team = None
-                if batting_team_name:
-                    batting_team, _ = Team.objects.get_or_create(name=batting_team_name)
+                for innings_index, innings in enumerate(rows, start=1):
+                    innings_num = innings.get('inningsNumber') or innings.get('inningsId') or innings_index
+                    batting_team_name = innings.get('batTeamName') or innings.get('battingTeam') or ''
+                    batting_team = None
+                    if batting_team_name:
+                        batting_team, _ = Team.objects.get_or_create(name=batting_team_name)
 
-                MatchScorecard.objects.update_or_create(
-                    match=match_obj,
-                    innings_number=int(innings_num),
-                    defaults={
-                        'batting_team': batting_team,
-                        'total_runs': int(innings.get('score') or innings.get('runs') or 0),
-                        'total_wickets': int(innings.get('wickets') or 0),
-                        'total_overs': float(innings.get('overs') or 0),
-                        'run_rate': float(innings.get('runRate') or 0),
-                        'batting_data': innings.get('batting') or innings.get('batsmenData') or [],
-                        'bowling_data': innings.get('bowling') or innings.get('bowlersData') or [],
-                    },
-                )
-
-                for batter in innings.get('batting', []) or innings.get('batsmenData', []) or []:
-                    batter_name = batter.get('batsmanName') or batter.get('name')
-                    if not batter_name:
-                        continue
-                    player, _ = Player.objects.get_or_create(name=batter_name, defaults={'team': batting_team})
-                    PlayerMatchStats.objects.update_or_create(
-                        player=player,
+                    MatchScorecard.objects.update_or_create(
                         match=match_obj,
                         innings_number=int(innings_num),
                         defaults={
-                            'runs_scored': int(batter.get('runs') or 0),
-                            'balls_faced': int(batter.get('balls') or 0),
-                            'fours': int(batter.get('fours') or 0),
-                            'sixes': int(batter.get('sixes') or 0),
-                            'strike_rate': float(batter.get('strikeRate') or batter.get('sr') or 0),
-                            'dismissed': str(batter.get('outDesc') or '').strip().lower() != 'not out',
+                            'batting_team': batting_team,
+                            'total_runs': int(innings.get('score') or innings.get('runs') or 0),
+                            'total_wickets': int(innings.get('wickets') or 0),
+                            'total_overs': float(innings.get('overs') or 0),
+                            'run_rate': float(innings.get('runRate') or 0),
+                            'batting_data': innings.get('batting') or innings.get('batsmenData') or [],
+                            'bowling_data': innings.get('bowling') or innings.get('bowlersData') or [],
                         },
                     )
 
-                for bowler in innings.get('bowling', []) or innings.get('bowlersData', []) or []:
-                    bowler_name = bowler.get('bowlerName') or bowler.get('name')
-                    if not bowler_name:
-                        continue
-                    player, _ = Player.objects.get_or_create(name=bowler_name)
-                    PlayerMatchStats.objects.update_or_create(
-                        player=player,
-                        match=match_obj,
-                        innings_number=int(innings_num),
-                        defaults={
-                            'overs_bowled': float(bowler.get('overs') or 0),
-                            'runs_conceded': int(bowler.get('runs') or 0),
-                            'wickets_taken': int(bowler.get('wickets') or 0),
-                            'economy': float(bowler.get('economy') or 0),
-                            'maidens': int(bowler.get('maidens') or 0),
-                        },
-                    )
+                    for batter in innings.get('batting', []) or innings.get('batsmenData', []) or []:
+                        batter_name = batter.get('batsmanName') or batter.get('name')
+                        if not batter_name:
+                            continue
+                        player, _ = Player.objects.get_or_create(name=batter_name, defaults={'team': batting_team})
+                        PlayerMatchStats.objects.update_or_create(
+                            player=player,
+                            match=match_obj,
+                            innings_number=int(innings_num),
+                            defaults={
+                                'runs_scored': int(batter.get('runs') or 0),
+                                'balls_faced': int(batter.get('balls') or 0),
+                                'fours': int(batter.get('fours') or 0),
+                                'sixes': int(batter.get('sixes') or 0),
+                                'strike_rate': float(batter.get('strikeRate') or batter.get('sr') or 0),
+                                'dismissed': str(batter.get('outDesc') or '').strip().lower() != 'not out',
+                            },
+                        )
 
-            synced += 1
+                    for bowler in innings.get('bowling', []) or innings.get('bowlersData', []) or []:
+                        bowler_name = bowler.get('bowlerName') or bowler.get('name')
+                        if not bowler_name:
+                            continue
+                        player, _ = Player.objects.get_or_create(name=bowler_name)
+                        PlayerMatchStats.objects.update_or_create(
+                            player=player,
+                            match=match_obj,
+                            innings_number=int(innings_num),
+                            defaults={
+                                'overs_bowled': float(bowler.get('overs') or 0),
+                                'runs_conceded': int(bowler.get('runs') or 0),
+                                'wickets_taken': int(bowler.get('wickets') or 0),
+                                'economy': float(bowler.get('economy') or 0),
+                                'maidens': int(bowler.get('maidens') or 0),
+                            },
+                        )
+
+                synced += 1
+            except Exception as match_exc:
+                failed += 1
+                logger.warning(f"sync_player_stats: skipping match {source_match_id} due to error: {match_exc}")
+                continue
 
         now_iso = timezone.now().isoformat()
         cache.set('pipeline:player_stats:last_sync_count', synced, TTL_PLAYER_STATS_SECONDS)
         cache.set('pipeline:player_stats:last_sync_at', now_iso, TTL_PLAYER_STATS_SECONDS)
-        logger.info(f"sync_player_stats: synced stats for {synced} matches")
-        return {'synced': synced}
+        cache.set('pipeline:player_stats:last_failed_count', failed, TTL_PLAYER_STATS_SECONDS)
+        logger.info(f"sync_player_stats: synced stats for {synced} matches (failed: {failed})")
+        return {'synced': synced, 'failed': failed}
     except Exception as exc:
         logger.error(f"sync_player_stats failed: {exc}")
         raise self.retry(exc=exc)
