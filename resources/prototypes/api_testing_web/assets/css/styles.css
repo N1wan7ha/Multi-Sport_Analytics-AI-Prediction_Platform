@@ -1,9 +1,0 @@
-/* Minimal tweaks on top of Bootstrap */
-
-body {
-    background: #f8f9fa;
-}
-
-main {
-    min-height: calc(100vh - 72px);
-}
