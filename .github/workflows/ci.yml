@@ -138,6 +138,14 @@ jobs:
       - name: Build frontend Docker image
         run: docker build -t cricket-frontend:latest -f ./frontend/Dockerfile.prod ./frontend
 
+      - name: Prepare env file for compose validation
+        run: |
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            touch .env
+          fi
+
       - name: Validate production compose file
         run: docker compose -f docker-compose.prod.yml config
 
