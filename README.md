@@ -1,4 +1,4 @@
-# MatchMind — Multi-Sport Prediction Platform
+# MatchMind - Multi-Sport Prediction Platform
 
 An AI-powered multi-sport analytics platform delivering real-time match predictions and insights with 86%+ accuracy. Currently focused on Cricket, with a scalable architecture designed to support Football, Basketball, and more.
 
