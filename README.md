@@ -1,129 +1,183 @@
-# 🎣 MatchMind — Multi-Sport Prediction Platform
+# MatchMind — Multi-Sport Prediction Platform
 
-An AI-powered multi-sport analytics platform that delivers real-time match predictions and insights across cricket, football, basketball, and more with 86%+ accuracy.
+An AI-powered multi-sport analytics platform delivering real-time match predictions and insights with 86%+ accuracy. Currently focused on Cricket, with a scalable architecture designed to support Football, Basketball, and more.
 
-## 🏗️ Stack
+## Key Features
+- **Real-Time Predictions**: Live match probability models with websocket streaming.
+- **Robust Data Pipelines**: Resilient multi-layered ingestion from Cricsheet, APILayer, CricAPI, and high-fidelity generic web scrapers.
+- **Advanced ML Engine**: Multi-mode training (yearly, rolling, walk-forward) with automated best-model selection routines.
+- **Vector Context Search**: Weaviate integration for deriving semantic pre-match analytical insights.
+- **Dynamic Dashboard**: Responsive, premium Angular 17 UI with telemetry, dynamic news integration, and real-time scorecards.
+
+## Technology Stack
 - **Frontend**: Angular 17 (TypeScript, SCSS)
 - **Backend**: Django 5 + Django REST Framework
 - **Database**: PostgreSQL 16
 - **Cache/Queue**: Redis 7 + Celery 5
-- **AI/ML**: scikit-learn, XGBoost, TensorFlow
-- **DevOps**: Docker Compose, Prometheus, Grafana
+- **AI/ML**: scikit-learn, XGBoost, TensorFlow, Weaviate
+- **DevOps**: Docker Compose, Nginx, Prometheus, Grafana
 
-## 📁 Folder Structure
+## Project Structure
 
-```
+```text
 matchmind/
-├── backend/         ← Django REST API
-├── frontend/        ← Angular 17 SPA
-├── ml/              ← ML training notebooks + model code
+├── backend/         ← Django REST API & Model Pipelines
+├── frontend/        ← Angular 17 SPA & Dashboards
+├── ml/              ← ML training notebooks + experimentation code
 ├── infra/           ← Nginx, Prometheus, Grafana configs
-├── resources/       ← Docs, diagrams, prototypes (reference only)
-├── plan.md          ← Full development plan
+├── resources/       ← Docs, diagrams, datasets, prototypes
+├── plan.md          ← Full development plan & roadmap
 └── docker-compose.dev.yml
 ```
 
-## 🚀 Quick Start (Local Dev — No Docker)
+## Getting Started
 
-### Backend
+### 1 Configuration
+Copy the environment template and configure your external provider API keys:
+
+```bash
+cp .env.example .env
+```
+
+**Required API Keys:**
+- `CRICAPI_KEY` — from [cricketdata.org](https://cricketdata.org)
+- `CRICBUZZ_RAPIDAPI_KEY` — from [RapidAPI](https://rapidapi.com)
+- `APILAYER_API_KEY` — from [apilayer.com](https://apilayer.com) (Optional, for bronze layer syncing)
+
+### 2 Running Locally (Docker — Recommended)
+Bootstrap the full stack seamlessly using Docker Compose:
+
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+- **Backend API**: `http://localhost:8000/api/v1/`
+- **Frontend UI**: `http://localhost:4200/`
+- **Services**: DB (`:5432`), Redis (`:6379`), Weaviate (`:8080`)
+
+### 3 Running Locally (Manual Setup)
+**Backend Environment**
 ```bash
 cd backend
 pip install -r requirements.txt
-python manage.py migrate          # uses SQLite by default in dev
+python manage.py migrate          # Uses SQLite by default in local dev
 python manage.py create_dev_superuser  # admin@matchmind.dev / admin1234
 python manage.py runserver
-# → http://localhost:8000/api/v1/
-# → http://localhost:8000/admin/
 ```
 
-### Frontend
+**Frontend Environment**
 ```bash
 cd frontend
 npm install
 npm run start
-# → http://localhost:4200/
 ```
 
-## 🐳 Full Stack with Docker
+## Machine Learning Engine
+MatchMind provides comprehensive CLI tooling for robust model training and lifecycle management, adaptable to varying hardware constraints.
+
+### Training Modes
+Execute scalable, targeted training directly from the terminal:
 
 ```bash
-# Copy and fill in your env vars
-cp .env.example .env
+cd backend
 
-# Start everything
-docker compose -f docker-compose.dev.yml up --build
+# Full-history training (Hardware intensive)
+python manage.py train_models --mode full
 
-# Services:
-# Backend  → http://localhost:8000
-# Frontend → http://localhost:4200
-# DB       → localhost:5432
-# Redis    → localhost:6379
+# Rolling-window training (recent N years)
+python manage.py train_models --mode rolling --years 3
+
+# Explicit year-range training
+python manage.py train_models --mode year-range --start-year 2018 --end-year 2024
+
+# Walk-forward training (Time-series validation)
+python manage.py train_models --mode walk-forward
 ```
 
-## 🚢 Production Stack (Phase 6)
-
+### Low-Hardware Training (Year-by-Year)
+For executing pipelines on environments with strict CPU/RAM limits:
 ```bash
-# Start production-oriented stack
-docker compose -f docker-compose.prod.yml up --build -d
+# 1) Import datasets (CSV/JSON from resources/dataset)
+python manage.py seed_cricsheet_dataset
 
-# Seed Celery schedules (includes live prediction auto-trigger task)
-docker compose -f docker-compose.prod.yml exec backend python manage.py seed_celery_schedules
+# 2) Train models progressively per year
+python manage.py seed_cricsheet_dataset --train --train-yearly --start-year 2010 --end-year 2024 --version-prefix v2.2
 ```
 
-### Production Services
-- App entrypoint via Nginx: http://localhost/
-- Django API proxied at /api/
-- WebSocket endpoint proxied at /ws/predictions/match/{match_id}/
-- Prometheus: http://localhost:9090/
-- Grafana: http://localhost:3000/ (admin/admin1234 unless overridden)
+### Advanced ML Context & Inference
+- **Auto-Model Selection:** Prediction inferences automatically select and utilize the best existing model artifact based on internal metrics (Accuracy, AUC-ROC, Brier Score) when `ML_AUTO_SELECT_BEST_MODEL=True`.
+- **Vector Context Enhancement:** Pre-match probabilities are enriched via bounded shifts derived from historical semantics.
+  ```bash
+  # Enable via .env: ML_VECTOR_CONTEXT_ENABLED=True
+  
+  # Index historical matches into the Vector DB
+  cd backend
+  python manage.py sync_weaviate_context --limit 5000
+  ```
 
-### Monitoring & Alerts
-- Prometheus scrape config: infra/prometheus/prometheus.yml
-- Alert rules: infra/prometheus/alerts.yml
-- Grafana provisioning: infra/grafana/provisioning/
-- Starter dashboard: infra/grafana/dashboards/platform-overview.json
+### Inspecting Model Rankings
+You can inspect ML artifact metrics directly via the Admin API:
+```bash
+GET /api/v1/admin/models/ranking/
+Authorization: Bearer <admin_jwt_token>
+```
 
-### SSL Termination (Let's Encrypt)
-- Nginx production config includes placeholders for ACME challenge path.
-- Mount certbot volumes (already declared in docker-compose.prod.yml) and wire your certbot job on host.
+## Data Integration & Pipelines
+MatchMind supports agnostic multi-layered ingestion.
 
-## 📊 Development Progress
+**APILayer Catalog Synchronization:**
+Allows populating the Bronze persistence layer with rich sports payloads for downstream analysis.
+```bash
+cd backend
+python manage.py sync_matches --source=apilayer
+```
 
-See [plan.md](plan.md) for the full 7-phase roadmap.
+## Testing & Validation
+Verify endpoint integrity, model logic, and UI compilation:
 
-| Phase | Status |
-|-------|--------|
-| 0 — Foundation | ✅ Complete |
-| 1 — Data Pipeline | ✅ Complete |
-| 2 — Backend API | ✅ Complete |
-| 3 — ML Core | ✅ Complete |
-| 4 — Frontend | ✅ Complete |
-| 5 — Live Prediction | ✅ Complete |
-| 6 — DevOps & Monitoring | ✅ Complete |
-| 7 — Polish & Launch | 🔄 In Progress |
-
-## ✅ Validation Checklist
-
-Run these commands to verify the current codebase end-to-end.
-
-### Backend
+**Backend Suite:**
 ```bash
 cd backend
 python manage.py check
 python manage.py test --verbosity 1
 ```
 
-### Frontend
+**Frontend Suite:**
 ```bash
 cd frontend
 npm run build
 npm run test -- --watch=false --browsers=ChromeHeadless --progress=false
 ```
+*Note: In select Windows environments, Karma may report specs as passed but exit non-zero due to browser disconnect latency.*
 
-Note: in some Windows environments, Karma may report all specs as passed but still exit non-zero with a browser reload/disconnect message.
+## Production Deployment
+Configure and launch the Phase 6 production stack incorporating load balancing and monitoring:
 
-## 🔑 API Keys
+```bash
+# Start production services securely
+docker compose -f docker-compose.prod.yml up --build -d
 
-Set in `.env` (copy from `.env.example`). Keys are for:
-- `CRICAPI_KEY` — from [cricketdata.org](https://cricketdata.org)
-- `CRICBUZZ_RAPIDAPI_KEY` — from [RapidAPI](https://rapidapi.com)
+# Seed automated ingestion/prediction Celery schedules
+docker compose -f docker-compose.prod.yml exec backend python manage.py seed_celery_schedules
+```
+
+**Production Subsystems:**
+- **App Gateway:** Nginx (`http://localhost/`) handling `/api/` and WebSocket `/ws/` termination.
+- **Monitoring:** Prometheus (`:9090`)
+- **Visualizations:** Grafana (`:3000` — `admin/admin1234`)
+- **SSL Termination:** Integrated Certbot configurations available in `docker-compose.prod.yml`.
+
+## Roadmap & Progress
+
+| Phase | Segment | Status |
+|-------|---------|--------|
+| **0** | Foundation | ✅ Complete |
+| **1** | Data Pipeline | ✅ Complete |
+| **2** | Backend API | ✅ Complete |
+| **3** | ML Core | ✅ Complete |
+| **4** | Frontend | ✅ Complete |
+| **5** | Live Prediction | ✅ Complete |
+| **6** | DevOps & Monitoring | ✅ Complete |
+| **7** | Polish & Launch | 🔄 In Progress |
+
+---
+*BUILD BY N1WAN7HA*

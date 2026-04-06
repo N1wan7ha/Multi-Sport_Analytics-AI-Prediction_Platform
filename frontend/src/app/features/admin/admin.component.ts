@@ -13,6 +13,7 @@ import { RouterLink, RouterOutlet } from '@angular/router';
         <p class="text-secondary" style="margin-top:0.5rem">Manage users, pipelines, and system metrics.</p>
 
         <div style="display:flex; gap:.5rem; margin-top:1rem; flex-wrap:wrap;">
+          <a routerLink="overview" class="btn btn-primary">🏠 Overview</a>
           <a routerLink="users" class="btn btn-primary">👥 Users</a>
           <a routerLink="activity" class="btn btn-secondary">📊 Activity</a>
           <a routerLink="pipeline" class="btn btn-secondary">⚙ Pipeline</a>

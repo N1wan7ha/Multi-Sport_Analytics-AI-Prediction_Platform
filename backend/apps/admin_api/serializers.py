@@ -32,6 +32,8 @@ class PipelineStatusSnapshotSerializer(serializers.Serializer):
     unified_matches = serializers.IntegerField()
     last_model_retraining = serializers.CharField(allow_blank=True)
     endpoint_health = serializers.JSONField(required=False)
+    endpoint_health_history = serializers.JSONField(required=False)
+    livescore6_endpoint_health = serializers.JSONField(required=False)
 
 
 class PipelineTaskTriggerSerializer(serializers.Serializer):
@@ -46,6 +48,18 @@ class PipelineTaskTriggerSerializer(serializers.Serializer):
             'sync_rapidapi_players',
             'sync_rapidapi_team_logos',
             'run_model_retraining_pipeline',
+            'run_rolling_window_retraining_pipeline',
+        ]
+    )
+    team_id = serializers.IntegerField(required=False, min_value=1)
+
+
+class PipelineBulkTriggerSerializer(serializers.Serializer):
+    bundle_name = serializers.ChoiceField(
+        choices=[
+            'rapidapi_catalog',
+            'match_sync',
+            'full_refresh',
         ]
     )
     team_id = serializers.IntegerField(required=False, min_value=1)

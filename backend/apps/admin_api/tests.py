@@ -237,10 +237,52 @@ class AdminApiTests(TestCase):
         self.assertEqual(response.status_code, 202)
         delay_mock.assert_called_once_with(team_id=55)
 
+    @patch('apps.admin_api.views.pipeline_tasks.sync_rapidapi_teams.delay')
+    @patch('apps.admin_api.views.pipeline_tasks.sync_rapidapi_team_logos.delay')
+    @patch('apps.admin_api.views.pipeline_tasks.sync_rapidapi_players.delay')
+    def test_pipeline_bulk_trigger_queues_bundle(self, players_delay_mock, logos_delay_mock, teams_delay_mock):
+        class TeamsResult:
+            id = 'teams-task-1'
+
+        class LogosResult:
+            id = 'logos-task-1'
+
+        class PlayersResult:
+            id = 'players-task-1'
+
+        teams_delay_mock.return_value = TeamsResult()
+        logos_delay_mock.return_value = LogosResult()
+        players_delay_mock.return_value = PlayersResult()
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            '/api/v1/admin/pipeline/trigger-bulk/',
+            {'bundle_name': 'rapidapi_catalog', 'team_id': 77},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.data['bundle_name'], 'rapidapi_catalog')
+        self.assertEqual(response.data['queued_count'], 3)
+        self.assertEqual(len(response.data['tasks']), 3)
+
+        teams_delay_mock.assert_called_once_with()
+        logos_delay_mock.assert_called_once_with()
+        players_delay_mock.assert_called_once_with(team_id=77)
+
     def test_pipeline_status_includes_endpoint_health(self):
         cache.set(
             'pipeline:endpoint_health:last_success',
-            {'live_scores': {'provider': 'rapidapi', 'path': '/cricket-livescores', 'at': '2026-03-20T20:00:00Z'}},
+            {'live_scores': {'provider': 'rapidapi_livescore6', 'path': '/matches/v2/list-live?Category=cricket', 'at': '2026-03-20T20:00:00Z'}},
+        )
+        cache.set(
+            'pipeline:endpoint_health:history',
+            {
+                'live_scores': [
+                    {'provider': 'rapidapi', 'path': '/cricket-livescores', 'at': '2026-03-20T19:00:00Z'},
+                    {'provider': 'rapidapi_livescore6', 'path': '/matches/v2/list-live?Category=cricket', 'at': '2026-03-20T20:00:00Z'},
+                ]
+            },
         )
 
         self.client.force_authenticate(self.admin)
@@ -249,3 +291,40 @@ class AdminApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('endpoint_health', response.data)
         self.assertIn('live_scores', response.data['endpoint_health'])
+        self.assertIn('endpoint_health_history', response.data)
+        self.assertIn('live_scores', response.data['endpoint_health_history'])
+        self.assertEqual(len(response.data['endpoint_health_history']['live_scores']), 2)
+        self.assertIn('livescore6_endpoint_health', response.data)
+        self.assertEqual(response.data['livescore6_endpoint_health']['provider'], 'rapidapi_livescore6')
+
+    @patch('apps.admin_api.views.rank_versions')
+    @patch('apps.admin_api.views.select_best_version')
+    def test_model_ranking_endpoint_returns_scored_versions(self, best_mock, rank_mock):
+        rank_mock.return_value = [
+            {
+                'version': 'v2.5',
+                'model_type': 'sklearn_ensemble',
+                'accuracy': 0.83,
+                'auc_roc': 0.89,
+                'brier_score': 0.16,
+                'sample_count': 2400,
+                'score': 0.9012,
+                'components': {
+                    'accuracy_component': 0.3735,
+                    'auc_component': 0.4005,
+                    'brier_component': 0.084,
+                    'quality_bonus': 0.1,
+                    'size_bonus': 0.048,
+                },
+            }
+        ]
+        best_mock.return_value = 'v2.5'
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.get('/api/v1/admin/models/ranking/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['selected_version'], 'v2.5')
+        self.assertEqual(response.data['total_versions'], 1)
+        self.assertEqual(response.data['ranked_versions'][0]['version'], 'v2.5')
+        self.assertIn('selection_reason', response.data)

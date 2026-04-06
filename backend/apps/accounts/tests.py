@@ -7,9 +7,10 @@ from rest_framework.test import APIClient
 from unittest.mock import patch
 
 from apps.matches.models import Team, Match
+from apps.players.models import Player
 from apps.predictions.models import PredictionJob
 from apps.predictions.models import PredictionResult
-from .models import NotificationDispatch, UserFavouriteTeam
+from .models import NotificationDispatch, UserFavouritePlayer, UserFavouriteTeam
 from .tasks import send_match_start_notifications, send_prediction_ready_notifications
 
 
@@ -27,6 +28,8 @@ class AccountsApiTests(TestCase):
 		self.client.force_authenticate(self.user)
 		self.team1 = Team.objects.create(name='India')
 		self.team2 = Team.objects.create(name='Australia')
+		self.player1 = Player.objects.create(name='Virat Kohli', team=self.team1, role='batsman')
+		self.player2 = Player.objects.create(name='Pat Cummins', team=self.team2, role='bowler')
 
 	def test_profile_update_supports_favourite_team_ids(self):
 		response = self.client.patch('/api/v1/auth/profile/', {
@@ -39,6 +42,50 @@ class AccountsApiTests(TestCase):
 		self.assertEqual(len(favourites), 2)
 		favourite_names = {team['name'] for team in favourites}
 		self.assertSetEqual(favourite_names, {'India', 'Australia'})
+
+	def test_profile_update_supports_favourite_player_ids(self):
+		response = self.client.patch('/api/v1/auth/profile/', {
+			'favourite_player_ids': [self.player1.id, self.player2.id],
+		}, format='json')
+
+		self.assertEqual(response.status_code, 200)
+		favourites = response.data.get('favourite_players', [])
+		self.assertEqual(len(favourites), 2)
+		favourite_names = {player['name'] for player in favourites}
+		self.assertSetEqual(favourite_names, {'Virat Kohli', 'Pat Cummins'})
+		self.assertEqual(UserFavouritePlayer.objects.filter(user=self.user).count(), 2)
+
+	def test_profile_update_rejects_more_than_five_favourite_teams(self):
+		team_ids = []
+		for index in range(6):
+			team_ids.append(Team.objects.create(name=f'Team {index}').id)
+
+		response = self.client.patch('/api/v1/auth/profile/', {
+			'favourite_team_ids': team_ids,
+		}, format='json')
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn('favourite_team_ids', response.data)
+
+	def test_profile_update_rejects_more_than_eleven_favourite_players(self):
+		player_ids = []
+		for index in range(12):
+			player_ids.append(Player.objects.create(name=f'Player {index}', team=self.team1, role='batsman').id)
+
+		response = self.client.patch('/api/v1/auth/profile/', {
+			'favourite_player_ids': player_ids,
+		}, format='json')
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn('favourite_player_ids', response.data)
+
+	def test_profile_update_rejects_duplicate_favourite_players(self):
+		response = self.client.patch('/api/v1/auth/profile/', {
+			'favourite_player_ids': [self.player1.id, self.player1.id],
+		}, format='json')
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn('favourite_player_ids', response.data)
 
 	def test_prediction_history_returns_user_jobs_only(self):
 		other_user = User.objects.create_user(
@@ -84,12 +131,32 @@ class AccountsApiTests(TestCase):
 		self.assertLessEqual(response.data[0]['name'], response.data[-1]['name'])
 
 	def test_team_options_supports_query_filter(self):
-		Team.objects.create(name='England')
+		Team.objects.create(name='England', logo_url='https://example.test/logo-england.png')
 
 		response = self.client.get('/api/v1/auth/team-options/?q=Ind')
 		self.assertEqual(response.status_code, 200)
 		self.assertGreaterEqual(len(response.data), 1)
 		self.assertTrue(all('ind' in row['name'].lower() for row in response.data))
+
+	def test_team_options_include_logo_url_field(self):
+		self.team1.logo_url = 'https://example.test/logo-india.png'
+		self.team1.save(update_fields=['logo_url'])
+
+		response = self.client.get('/api/v1/auth/team-options/')
+		self.assertEqual(response.status_code, 200)
+		india_row = next((row for row in response.data if row['id'] == self.team1.id), None)
+		self.assertIsNotNone(india_row)
+		self.assertEqual(india_row['logo_url'], 'https://example.test/logo-india.png')
+
+	def test_player_options_supports_query_and_auth(self):
+		anon = APIClient()
+		anon_response = anon.get('/api/v1/auth/player-options/')
+		self.assertEqual(anon_response.status_code, 401)
+
+		response = self.client.get('/api/v1/auth/player-options/?q=Virat')
+		self.assertEqual(response.status_code, 200)
+		self.assertGreaterEqual(len(response.data), 1)
+		self.assertTrue(any('virat' in row['name'].lower() for row in response.data))
 
 	@override_settings(GOOGLE_CLIENT_ID='test-google-client-id')
 	@patch('apps.accounts.views.google_id_token.verify_oauth2_token')

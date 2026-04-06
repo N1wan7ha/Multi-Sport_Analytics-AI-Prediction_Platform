@@ -6,7 +6,7 @@ from .models import Match, Team, Venue, MatchScorecard
 class TeamSerializer(serializers.ModelSerializer):
     class Meta:
         model = Team
-        fields = ['id', 'name', 'short_name', 'country', 'is_international']
+        fields = ['id', 'name', 'short_name', 'logo_url', 'country', 'is_international']
 
 
 class VenueSerializer(serializers.ModelSerializer):
@@ -16,6 +16,8 @@ class VenueSerializer(serializers.ModelSerializer):
 
 
 class MatchScorecardSerializer(serializers.ModelSerializer):
+    batting_team = TeamSerializer(read_only=True)
+    
     class Meta:
         model = MatchScorecard
         fields = ['innings_number', 'batting_team', 'total_runs', 'total_wickets',

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { BehaviorSubject, EMPTY, Observable, catchError, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthTokens, User } from '../models';
 
@@ -8,6 +8,17 @@ export interface TeamOption {
     id: number;
     name: string;
     short_name?: string;
+    logo_url?: string;
+    is_international?: boolean;
+}
+
+export interface PlayerOption {
+    id: number;
+    name: string;
+    full_name?: string;
+    team_name?: string;
+    country?: string;
+    image_url?: string;
 }
 
 export interface PredictionHistoryEntry {
@@ -43,7 +54,16 @@ export class AuthService {
     constructor(private http: HttpClient) {
         // Restore user from localStorage on init
         const token = this.getAccessToken();
-        if (token) this.loadProfile().subscribe();
+        if (token) {
+            this.loadProfile()
+                .pipe(
+                    catchError(() => {
+                        this.logout();
+                        return EMPTY;
+                    })
+                )
+                .subscribe();
+        }
     }
 
     login(email: string, password: string): Observable<AuthTokens> {
@@ -81,7 +101,17 @@ export class AuthService {
     }
 
     isLoggedIn(): boolean {
-        return !!this.getAccessToken();
+        const token = this.getAccessToken();
+        if (!token) {
+            return false;
+        }
+
+        if (this.isTokenExpired(token)) {
+            this.logout();
+            return false;
+        }
+
+        return true;
     }
 
     getCurrentUserRole(): 'ADMIN' | 'USER' | null {
@@ -112,13 +142,28 @@ export class AuthService {
         }
     }
 
+    private isTokenExpired(token: string): boolean {
+        const payload = this.decodeJwtPayload(token);
+        if (!payload) {
+            return true;
+        }
+
+        const exp = payload['exp'];
+        if (typeof exp !== 'number') {
+            return false;
+        }
+
+        const currentEpoch = Math.floor(Date.now() / 1000);
+        return exp <= currentEpoch;
+    }
+
     loadProfile(): Observable<User> {
         return this.http.get<User>(`${this.base}/profile/`).pipe(
             tap(user => this._currentUser.next(user))
         );
     }
 
-    updateProfile(payload: { bio?: string; favourite_team_ids?: number[]; favourite_team?: string }): Observable<User> {
+    updateProfile(payload: { bio?: string; favourite_team_ids?: number[]; favourite_player_ids?: number[]; favourite_team?: string }): Observable<User> {
         return this.http.patch<User>(`${this.base}/profile/`, payload).pipe(
             tap(user => this._currentUser.next(user))
         );
@@ -126,6 +171,14 @@ export class AuthService {
 
     getTeamOptions(): Observable<TeamOption[]> {
         return this.http.get<TeamOption[]>(`${this.base}/team-options/`);
+    }
+
+    getPlayerOptions(query?: string): Observable<PlayerOption[]> {
+        const q = (query || '').trim();
+        const url = q
+            ? `${this.base}/player-options/?q=${encodeURIComponent(q)}`
+            : `${this.base}/player-options/`;
+        return this.http.get<PlayerOption[]>(url);
     }
 
     getPredictionHistory(): Observable<PaginatedResponse<PredictionHistoryEntry>> {
@@ -138,5 +191,12 @@ export class AuthService {
 
     confirmEmailVerification(token: string): Observable<{ detail: string }> {
         return this.http.post<{ detail: string }>(`${this.base}/verify-email/confirm/`, { token });
+    }
+
+    changePassword(currentPassword: string, newPassword: string): Observable<{ detail: string }> {
+        return this.http.post<{ detail: string }>(`${this.base}/change-password/`, {
+            current_password: currentPassword,
+            new_password: newPassword,
+        });
     }
 }

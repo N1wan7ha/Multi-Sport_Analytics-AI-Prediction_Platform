@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import signing
 from django.core.mail import send_mail
+from django.db import models
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 from rest_framework import generics
@@ -14,8 +15,9 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from apps.matches.models import Team
+from apps.players.models import Player
 from apps.predictions.models import PredictionJob
-from .models import UserFavouriteTeam
+from .models import UserFavouritePlayer, UserFavouriteTeam
 from .serializers import CustomTokenObtainPairSerializer
 
 User = get_user_model()
@@ -25,7 +27,15 @@ logger = logging.getLogger(__name__)
 class TeamMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = Team
-        fields = ['id', 'name', 'short_name']
+        fields = ['id', 'name', 'short_name', 'logo_url']
+
+
+class PlayerMiniSerializer(serializers.ModelSerializer):
+    team_name = serializers.CharField(source='team.name', read_only=True)
+
+    class Meta:
+        model = Player
+        fields = ['id', 'name', 'full_name', 'team_name', 'country', 'image_url']
 
 
 class PredictionResultMiniSerializer(serializers.Serializer):
@@ -60,22 +70,44 @@ class UserSerializer(serializers.ModelSerializer):
         required=False,
         write_only=True,
     )
+    favourite_player_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        required=False,
+        write_only=True,
+    )
     favourite_teams = serializers.SerializerMethodField(read_only=True)
+    favourite_players = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'username', 'password', 'role', 'email_verified', 'bio',
-            'favourite_team', 'favourite_team_ids', 'favourite_teams',
+            'favourite_team', 'favourite_team_ids', 'favourite_player_ids', 'favourite_teams', 'favourite_players',
         ]
         read_only_fields = ['role', 'email_verified']
 
+    def validate_favourite_team_ids(self, value):
+        if len(value) > 5:
+            raise serializers.ValidationError('You can select up to 5 favourite teams.')
+        if len(set(value)) != len(value):
+            raise serializers.ValidationError('Duplicate favourite teams are not allowed.')
+        return value
+
+    def validate_favourite_player_ids(self, value):
+        if len(value) > 11:
+            raise serializers.ValidationError('You can select up to 11 favourite players.')
+        if len(set(value)) != len(value):
+            raise serializers.ValidationError('Duplicate favourite players are not allowed.')
+        return value
+
     def create(self, validated_data):
         validated_data.pop('favourite_team_ids', None)
+        validated_data.pop('favourite_player_ids', None)
         return User.objects.create_user(**validated_data)
 
     def update(self, instance, validated_data):
         favourite_team_ids = validated_data.pop('favourite_team_ids', None)
+        favourite_player_ids = validated_data.pop('favourite_player_ids', None)
         for key, value in validated_data.items():
             setattr(instance, key, value)
         instance.save()
@@ -90,11 +122,25 @@ class UserSerializer(serializers.ModelSerializer):
                 if team.id not in existing_team_ids:
                     UserFavouriteTeam.objects.create(user=instance, team=team)
 
+        if favourite_player_ids is not None:
+            players = Player.objects.filter(id__in=favourite_player_ids)
+            UserFavouritePlayer.objects.filter(user=instance).exclude(player__in=players).delete()
+            existing_player_ids = set(
+                UserFavouritePlayer.objects.filter(user=instance).values_list('player_id', flat=True)
+            )
+            for player in players:
+                if player.id not in existing_player_ids:
+                    UserFavouritePlayer.objects.create(user=instance, player=player)
+
         return instance
 
     def get_favourite_teams(self, obj):
         teams = Team.objects.filter(favoured_by_users__user=obj).order_by('name')
         return TeamMiniSerializer(teams, many=True).data
+
+    def get_favourite_players(self, obj):
+        players = Player.objects.filter(favoured_by_users__user=obj).select_related('team').order_by('name')
+        return PlayerMiniSerializer(players, many=True).data
 
 
 class GoogleAuthSerializer(serializers.Serializer):
@@ -103,6 +149,18 @@ class GoogleAuthSerializer(serializers.Serializer):
 
 class EmailVerificationConfirmSerializer(serializers.Serializer):
     token = serializers.CharField()
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    new_password = serializers.CharField(write_only=True, min_length=8, trim_whitespace=False)
+
+    def validate_current_password(self, value):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if not user or not user.check_password(value):
+            raise serializers.ValidationError('Current password is incorrect.')
+        return value
 
 
 def _generate_unique_username(base: str) -> str:
@@ -255,6 +313,20 @@ class ConfirmEmailVerificationView(APIView):
 
         return Response({'detail': 'Email verified successfully'})
 
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        user.set_password(serializer.validated_data['new_password'])
+        user.save(update_fields=['password'])
+
+        return Response({'detail': 'Password updated successfully.'})
+
 class ProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
@@ -272,8 +344,30 @@ class TeamOptionsView(generics.ListAPIView):
         queryset = Team.objects.order_by('name')
         query = (self.request.query_params.get('q') or '').strip()
         if query:
-            queryset = queryset.filter(name__icontains=query)
+            queryset = queryset.filter(
+                models.Q(name__icontains=query)
+                | models.Q(short_name__icontains=query)
+                | models.Q(country__icontains=query)
+            )
         return queryset
+
+
+class PlayerOptionsView(generics.ListAPIView):
+    serializer_class = PlayerMiniSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    def get_queryset(self):
+        queryset = Player.objects.select_related('team').order_by('name')
+        query = (self.request.query_params.get('q') or '').strip()
+        if query:
+            queryset = queryset.filter(
+                models.Q(name__icontains=query)
+                | models.Q(full_name__icontains=query)
+                | models.Q(team__name__icontains=query)
+                | models.Q(country__icontains=query)
+            )
+        return queryset[:250]
 
 
 class PredictionHistoryView(generics.ListAPIView):

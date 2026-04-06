@@ -54,7 +54,7 @@ export class LoginComponent implements OnInit {
     this.auth.login(this.email, this.password).subscribe({
       next: () => {
         this.loading = false;
-        this.router.navigate(['/dashboard']);
+        this.router.navigate(['/home']);
       },
       error: () => {
         this.loading = false;
@@ -118,7 +118,7 @@ export class LoginComponent implements OnInit {
     this.auth.googleLogin(token).subscribe({
       next: () => {
         this.loading = false;
-        this.router.navigate(['/dashboard']);
+        this.router.navigate(['/home']);
       },
       error: () => {
         this.loading = false;

@@ -125,10 +125,20 @@ export interface User {
     favourite_team: string;
     bio?: string;
     favourite_team_ids?: number[];
+    favourite_player_ids?: number[];
     favourite_teams?: Array<{
         id: number;
         name: string;
         short_name?: string;
+        logo_url?: string;
+    }>;
+    favourite_players?: Array<{
+        id: number;
+        name: string;
+        full_name?: string;
+        team_name?: string;
+        country?: string;
+        image_url?: string;
     }>;
 }
 

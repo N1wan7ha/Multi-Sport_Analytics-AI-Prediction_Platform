@@ -1,7 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AuthService, PredictionHistoryEntry, TeamOption } from '../../../core/services/auth.service';
+import { Router } from '@angular/router';
+
+import { User } from '../../../core/models';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-profile',
@@ -9,174 +12,122 @@ import { AuthService, PredictionHistoryEntry, TeamOption } from '../../../core/s
   imports: [CommonModule, FormsModule],
   template: `
     <div class="page-container animate-fade-up">
-      <div class="card" style="margin-bottom:1rem;">
-        <h1>Profile</h1>
-        <p class="text-secondary" style="margin-top:0.5rem">Manage favourite teams and view your prediction history.</p>
-      </div>
+      <section class="card" style="margin-bottom:1rem;">
+        <h1>My Profile</h1>
+        <p class="text-secondary" style="margin-top:.45rem;">Your account details and password settings.</p>
+      </section>
 
-      <div class="card" style="margin-bottom:1rem;">
-        <h3>Email Verification</h3>
-        <p class="text-secondary" style="margin-top:0.5rem;">
-          Keep your account secure by verifying your email address.
-        </p>
+      <section class="card" style="margin-bottom:1rem;">
+        <h3>Profile Data</h3>
+        <p *ngIf="loading" class="text-secondary" style="margin-top:.55rem;">Loading profile...</p>
+        <p *ngIf="error" class="status-error" style="margin-top:.55rem;">{{ error }}</p>
 
-        <div style="margin-top:0.85rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
-          <span
-            [style.color]="emailVerified ? 'var(--color-win)' : 'var(--color-accent)'"
-            [style.border]="emailVerified ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(245,158,11,0.35)'"
-            style="padding:0.28rem 0.55rem; border-radius:999px; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em;"
-          >
-            {{ emailVerified ? 'Verified' : 'Not Verified' }}
-          </span>
-
-          <button
-            class="btn btn-secondary"
-            *ngIf="emailVerified === false"
-            [disabled]="resendingVerification"
-            (click)="resendVerificationEmail()"
-          >
-            {{ resendingVerification ? 'Sending...' : 'Resend Verification Email' }}
-          </button>
+        <div *ngIf="profile" style="margin-top:.75rem; display:grid; gap:.55rem;">
+          <p><strong>Username:</strong> {{ profile.username }}</p>
+          <p><strong>Email:</strong> {{ profile.email }}</p>
+          <p><strong>Role:</strong> {{ profile.role }}</p>
+          <p><strong>Email Status:</strong> {{ profile.email_verified ? 'Verified' : 'Not verified' }}</p>
+          <p *ngIf="profile.bio"><strong>Bio:</strong> {{ profile.bio }}</p>
         </div>
+      </section>
 
-        <p class="text-secondary" *ngIf="verificationMessage" style="margin-top:0.7rem;">{{ verificationMessage }}</p>
-        <p class="status-error" *ngIf="verificationError" style="margin-top:0.7rem;">{{ verificationError }}</p>
-      </div>
+      <section class="card">
+        <h3>Change Password</h3>
+        <p class="text-secondary" style="margin-top:.35rem;">Use a strong password with at least 8 characters.</p>
 
-      <div class="card" style="margin-bottom:1rem;">
-        <h3>Favourite Teams</h3>
-        <p *ngIf="loadingTeams" class="text-secondary">Loading teams...</p>
-        <p *ngIf="error" class="status-error">{{ error }}</p>
+        <div style="margin-top:.75rem; display:grid; gap:.65rem; max-width:520px;">
+          <label>
+            <span class="text-secondary" style="display:block; margin-bottom:.25rem;">Current Password</span>
+            <input class="input" type="password" [(ngModel)]="currentPassword" />
+          </label>
 
-        <div *ngIf="!loadingTeams" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.5rem; margin-top:.75rem;">
-          <label *ngFor="let team of teams" style="display:flex; align-items:center; gap:.5rem;">
-            <input type="checkbox" [checked]="selectedTeamIds.has(team.id)" (change)="toggleTeam(team.id, $event)" />
-            <span>{{ team.name }}</span>
+          <label>
+            <span class="text-secondary" style="display:block; margin-bottom:.25rem;">New Password</span>
+            <input class="input" type="password" [(ngModel)]="newPassword" />
+          </label>
+
+          <label>
+            <span class="text-secondary" style="display:block; margin-bottom:.25rem;">Confirm New Password</span>
+            <input class="input" type="password" [(ngModel)]="confirmPassword" />
           </label>
         </div>
 
-        <div style="margin-top:1rem; display:flex; gap:.5rem;">
-          <button class="btn btn-primary" (click)="saveFavourites()" [disabled]="savingFavourites">{{ savingFavourites ? 'Saving...' : 'Save Favourites' }}</button>
-        </div>
-      </div>
+        <p *ngIf="passwordError" class="status-error" style="margin-top:.7rem;">{{ passwordError }}</p>
+        <p *ngIf="passwordSuccess" class="text-secondary" style="margin-top:.7rem; color:var(--color-win);">{{ passwordSuccess }}</p>
 
-      <div class="card">
-        <h3>Prediction History</h3>
-        <p *ngIf="loadingHistory" class="text-secondary">Loading history...</p>
-        <p *ngIf="!loadingHistory && history.length === 0" class="text-secondary">No prediction history yet.</p>
-
-        <div *ngFor="let item of history" class="list-row" style="display:grid; gap:.3rem;">
-          <div><strong>{{ item.match_name }}</strong> · {{ item.prediction_type }}</div>
-          <div class="text-secondary">Status: {{ item.status }} · Model: {{ item.model_version }}</div>
-          <div *ngIf="item.result" class="text-secondary">
-            T1 {{ (item.result.team1_win_probability * 100) | number:'1.0-1' }}%
-            · T2 {{ (item.result.team2_win_probability * 100) | number:'1.0-1' }}%
-            · Confidence {{ item.result.confidence_score | number:'1.0-2' }}
-          </div>
+        <div style="margin-top:.9rem; display:flex; gap:.55rem; flex-wrap:wrap;">
+          <button class="btn btn-primary" [disabled]="changingPassword" (click)="changePassword()">
+            {{ changingPassword ? 'Updating...' : 'Update Password' }}
+          </button>
         </div>
-      </div>
+      </section>
     </div>
   `,
 })
 export class ProfileComponent implements OnInit {
-  teams: TeamOption[] = [];
-  history: PredictionHistoryEntry[] = [];
-  selectedTeamIds = new Set<number>();
-  emailVerified = false;
-  loadingTeams = false;
-  loadingHistory = false;
-  savingFavourites = false;
-  resendingVerification = false;
-  verificationMessage = '';
-  verificationError = '';
+  profile: User | null = null;
+  loading = false;
   error = '';
 
-  constructor(private auth: AuthService) {}
+  currentPassword = '';
+  newPassword = '';
+  confirmPassword = '';
+  changingPassword = false;
+  passwordError = '';
+  passwordSuccess = '';
+
+  constructor(private auth: AuthService, private router: Router) {}
 
   ngOnInit(): void {
-    this.loadProfileData();
-  }
-
-  private loadProfileData(): void {
-    this.loadingTeams = true;
-    this.loadingHistory = true;
-
+    this.loading = true;
     this.auth.loadProfile().subscribe({
       next: (profile) => {
-        this.selectedTeamIds = new Set((profile.favourite_teams || []).map((team) => team.id));
-        this.emailVerified = !!profile.email_verified;
+        this.profile = profile;
+        this.loading = false;
       },
-      error: () => {
-        this.error = 'Failed to load profile.';
-      },
-    });
-
-    this.auth.getTeamOptions().subscribe({
-      next: (teams) => {
-        this.teams = teams;
-        this.loadingTeams = false;
-      },
-      error: () => {
-        this.loadingTeams = false;
-        this.error = 'Failed to load teams.';
-      },
-    });
-
-    this.auth.getPredictionHistory().subscribe({
-      next: (response) => {
-        this.history = response.results;
-        this.loadingHistory = false;
-      },
-      error: () => {
-        this.loadingHistory = false;
-        this.error = 'Failed to load prediction history.';
+      error: (err) => {
+        this.loading = false;
+        if (err?.status === 401) {
+          this.auth.logout();
+          this.router.navigate(['/auth/login']);
+          return;
+        }
+        this.error = 'Unable to load profile right now.';
       },
     });
   }
 
-  toggleTeam(teamId: number, event: Event): void {
-    const checked = (event.target as HTMLInputElement).checked;
-    if (checked) {
-      this.selectedTeamIds.add(teamId);
-    } else {
-      this.selectedTeamIds.delete(teamId);
-    }
-  }
+  changePassword(): void {
+    this.passwordError = '';
+    this.passwordSuccess = '';
 
-  saveFavourites(): void {
-    this.savingFavourites = true;
-    this.error = '';
-    const ids = Array.from(this.selectedTeamIds.values());
-
-    this.auth.updateProfile({ favourite_team_ids: ids }).subscribe({
-      next: (updated) => {
-        this.selectedTeamIds = new Set((updated.favourite_teams || []).map((team) => team.id));
-        this.savingFavourites = false;
-      },
-      error: () => {
-        this.savingFavourites = false;
-        this.error = 'Unable to save favourites right now.';
-      },
-    });
-  }
-
-  resendVerificationEmail(): void {
-    if (this.emailVerified) {
+    if (!this.currentPassword || !this.newPassword || !this.confirmPassword) {
+      this.passwordError = 'Please fill all password fields.';
       return;
     }
 
-    this.resendingVerification = true;
-    this.verificationMessage = '';
-    this.verificationError = '';
+    if (this.newPassword.length < 8) {
+      this.passwordError = 'New password must be at least 8 characters.';
+      return;
+    }
 
-    this.auth.resendEmailVerification().subscribe({
-      next: (response) => {
-        this.resendingVerification = false;
-        this.verificationMessage = response.detail || 'Verification email sent.';
+    if (this.newPassword !== this.confirmPassword) {
+      this.passwordError = 'New password and confirmation do not match.';
+      return;
+    }
+
+    this.changingPassword = true;
+    this.auth.changePassword(this.currentPassword, this.newPassword).subscribe({
+      next: (res) => {
+        this.changingPassword = false;
+        this.passwordSuccess = res.detail || 'Password updated successfully.';
+        this.currentPassword = '';
+        this.newPassword = '';
+        this.confirmPassword = '';
       },
       error: (err) => {
-        this.resendingVerification = false;
-        this.verificationError = err?.error?.detail || 'Failed to send verification email.';
+        this.changingPassword = false;
+        this.passwordError = err?.error?.detail || err?.error?.current_password?.[0] || 'Unable to update password right now.';
       },
     });
   }

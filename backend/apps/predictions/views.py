@@ -10,12 +10,35 @@ from .tasks import process_prediction_job
 
 
 class PredictionResultSerializer(serializers.ModelSerializer):
+    explainability = serializers.SerializerMethodField()
+    pre_match_projection = serializers.SerializerMethodField()
+    team_strength_score = serializers.SerializerMethodField()
+    player_impact_score = serializers.SerializerMethodField()
+    momentum_score = serializers.SerializerMethodField()
+
+    def get_explainability(self, obj):
+        return ((obj.feature_snapshot or {}).get('explainability') or {})
+
+    def get_pre_match_projection(self, obj):
+        return ((obj.feature_snapshot or {}).get('pre_match_projection') or {})
+
+    def get_team_strength_score(self, obj):
+        return self.get_explainability(obj).get('team_strength_score')
+
+    def get_player_impact_score(self, obj):
+        return self.get_explainability(obj).get('player_impact_score')
+
+    def get_momentum_score(self, obj):
+        return self.get_explainability(obj).get('momentum_score')
+
     class Meta:
         model = PredictionResult
         fields = [
             'team1', 'team2',
             'team1_win_probability', 'team2_win_probability', 'draw_probability',
             'confidence_score', 'key_factors', 'feature_snapshot',
+            'explainability', 'pre_match_projection',
+            'team_strength_score', 'player_impact_score', 'momentum_score',
             'current_over', 'current_score', 'created_at',
         ]
 
@@ -38,9 +61,19 @@ class PredictionCreateSerializer(serializers.Serializer):
     current_score = serializers.CharField(required=False, allow_blank=True, max_length=50)
 
     def validate(self, attrs):
+        match = attrs.get('match')
         prediction_type = attrs.get('prediction_type', 'pre_match')
-        if prediction_type == 'live' and 'current_over' not in attrs:
-            raise serializers.ValidationError({'current_over': 'This field is required for live predictions.'})
+
+        if match and match.status not in {'upcoming', 'live'}:
+            raise serializers.ValidationError(
+                {'match': 'AI predictions are available only for upcoming or live matches.'}
+            )
+
+        if prediction_type == 'live' and match and match.status != 'live':
+            raise serializers.ValidationError(
+                {'prediction_type': 'Live prediction can only run for matches with live status.'}
+            )
+
         return attrs
 
     def create(self, validated_data):

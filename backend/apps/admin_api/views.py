@@ -4,6 +4,7 @@ from typing import Any, cast
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.conf import settings
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -15,12 +16,14 @@ from apps.core.permissions import IsAdminRole
 from apps.predictions.models import PredictionJob
 from apps.matches.models import Match
 from apps.data_pipeline import tasks as pipeline_tasks
+from ml_engine.loader import rank_versions, select_best_version
 from config.celery import app as celery_app
 from .serializers import (
     AdminUserSerializer,
     ActivitySummarySerializer,
     PipelineStatusSnapshotSerializer,
     PipelineTaskTriggerSerializer,
+    PipelineBulkTriggerSerializer,
     SystemMetricsSerializer,
     AdminPredictionJobSerializer,
     AdminPredictionRetrySerializer,
@@ -159,6 +162,20 @@ class AdminPipelineStatusView(APIView):
     permission_classes = [IsAdminRole]
 
     def get(self, request):
+        endpoint_health = cache.get('pipeline:endpoint_health:last_success') or {}
+        endpoint_health_history = cache.get('pipeline:endpoint_health:history') or {}
+
+        livescore6_endpoint_health = {}
+        live_history = endpoint_health_history.get('live_scores') if isinstance(endpoint_health_history, dict) else None
+        if isinstance(live_history, list):
+            for event in reversed(live_history):
+                if not isinstance(event, dict):
+                    continue
+                provider = str(event.get('provider') or '').lower()
+                if 'livescore6' in provider:
+                    livescore6_endpoint_health = event
+                    break
+
         payload = {
             'current_matches': cache.get('pipeline:current_matches:last_sync_count')
             or Match.objects.exclude(status='complete').count(),
@@ -169,7 +186,9 @@ class AdminPipelineStatusView(APIView):
             'player_stats': cache.get('pipeline:player_stats:last_sync_count') or 0,
             'unified_matches': cache.get('pipeline:unified_matches:last_sync_count') or Match.objects.count(),
             'last_model_retraining': cache.get('pipeline:model_retraining:last_run_at') or '',
-            'endpoint_health': cache.get('pipeline:endpoint_health:last_success') or {},
+            'endpoint_health': endpoint_health,
+            'endpoint_health_history': endpoint_health_history,
+            'livescore6_endpoint_health': livescore6_endpoint_health,
         }
         serializer = PipelineStatusSnapshotSerializer(payload)
         return Response(serializer.data)
@@ -188,7 +207,15 @@ class AdminPipelineTriggerView(APIView):
         'sync_rapidapi_players': pipeline_tasks.sync_rapidapi_players,
         'sync_rapidapi_team_logos': pipeline_tasks.sync_rapidapi_team_logos,
         'run_model_retraining_pipeline': pipeline_tasks.run_model_retraining_pipeline,
+        'run_rolling_window_retraining_pipeline': pipeline_tasks.run_rolling_window_retraining_pipeline,
     }
+
+    @classmethod
+    def queue_task(cls, task_name: str, team_id: int | None = None):
+        task = cls.task_map[task_name]
+        if task_name == 'sync_rapidapi_players' and team_id:
+            return task.delay(team_id=team_id)
+        return task.delay()
 
     def post(self, request):
         serializer = PipelineTaskTriggerSerializer(data=request.data)
@@ -196,16 +223,69 @@ class AdminPipelineTriggerView(APIView):
         validated_data = cast(dict[str, Any], serializer.validated_data)
 
         task_name = validated_data['task_name']
-        task = self.task_map[task_name]
-        if task_name == 'sync_rapidapi_players' and validated_data.get('team_id'):
-            async_result = task.delay(team_id=validated_data['team_id'])
-        else:
-            async_result = task.delay()
+        async_result = self.queue_task(task_name, validated_data.get('team_id'))
         return Response(
             {
                 'status': 'queued',
                 'task_name': task_name,
                 'task_id': async_result.id,
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+
+class AdminPipelineBulkTriggerView(APIView):
+    permission_classes = [IsAdminRole]
+
+    bundle_map = {
+        'rapidapi_catalog': [
+            'sync_rapidapi_teams',
+            'sync_rapidapi_team_logos',
+            'sync_rapidapi_players',
+        ],
+        'match_sync': [
+            'sync_current_matches',
+            'sync_cricbuzz_live',
+            'sync_completed_matches',
+            'sync_unified_matches',
+        ],
+        'full_refresh': [
+            'sync_rapidapi_teams',
+            'sync_rapidapi_team_logos',
+            'sync_rapidapi_players',
+            'sync_current_matches',
+            'sync_cricbuzz_live',
+            'sync_completed_matches',
+            'sync_player_stats',
+            'sync_unified_matches',
+        ],
+    }
+
+    def post(self, request):
+        serializer = PipelineBulkTriggerSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = cast(dict[str, Any], serializer.validated_data)
+
+        bundle_name = validated_data['bundle_name']
+        task_names = self.bundle_map[bundle_name]
+        team_id = validated_data.get('team_id')
+
+        queued_tasks = []
+        for task_name in task_names:
+            async_result = AdminPipelineTriggerView.queue_task(task_name, team_id)
+            queued_tasks.append(
+                {
+                    'task_name': task_name,
+                    'task_id': async_result.id,
+                }
+            )
+
+        return Response(
+            {
+                'status': 'queued',
+                'bundle_name': bundle_name,
+                'queued_count': len(queued_tasks),
+                'tasks': queued_tasks,
             },
             status=status.HTTP_202_ACCEPTED,
         )
@@ -226,6 +306,27 @@ class SystemMetricsView(APIView):
         }
         serializer = SystemMetricsSerializer(payload)
         return Response(serializer.data)
+
+
+class AdminModelRankingView(APIView):
+    """Inspect ML artifact ranking and selected best version."""
+    permission_classes = [IsAdminRole]
+
+    def get(self, request):
+        model_path = settings.ML_MODEL_PATH
+        ranked = rank_versions(model_path)
+        selected = select_best_version(model_path)
+        selected_row = next((row for row in ranked if row.get('version') == selected), None)
+
+        return Response(
+            {
+                'model_path': model_path,
+                'selected_version': selected,
+                'selection_reason': selected_row.get('components') if selected_row else {},
+                'ranked_versions': ranked,
+                'total_versions': len(ranked),
+            }
+        )
 
 
 class AdminPredictionJobsView(APIView):

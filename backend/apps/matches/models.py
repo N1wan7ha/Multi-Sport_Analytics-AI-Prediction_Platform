@@ -8,11 +8,33 @@ class Team(models.Model):
     logo_url = models.URLField(blank=True)
     country = models.CharField(max_length=100, blank=True)
     is_international = models.BooleanField(default=True)
+    
+    # Source tracking (Silver layer)
+    primary_source = models.CharField(
+        max_length=20,
+        default='rapidapi_free',
+        help_text='Primary API source for this team'
+    )
+    confidence_score = models.IntegerField(
+        default=50,
+        help_text='0-100: Confidence in accuracy'
+    )
+    source_urls = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of 'provider': 'source_timestamp' pairs that contributed"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'teams'
         ordering = ['name']
+        indexes = [
+            models.Index(fields=['primary_source']),
+            models.Index(fields=['confidence_score']),
+        ]
 
     def __str__(self):
         return self.name
@@ -62,6 +84,8 @@ class Match(models.Model):
 
     # Match info
     name = models.CharField(max_length=300)
+    series = models.ForeignKey('series.Series', related_name='matches', on_delete=models.SET_NULL, null=True, blank=True)
+    series_name = models.CharField(max_length=200, blank=True, help_text='Raw series name if not linked')
     team1 = models.ForeignKey(Team, related_name='home_matches', on_delete=models.SET_NULL, null=True)
     team2 = models.ForeignKey(Team, related_name='away_matches', on_delete=models.SET_NULL, null=True)
     venue = models.ForeignKey(Venue, on_delete=models.SET_NULL, null=True, blank=True)
@@ -79,8 +103,34 @@ class Match(models.Model):
     toss_winner = models.ForeignKey(Team, related_name='toss_wins', on_delete=models.SET_NULL, null=True, blank=True)
     toss_decision = models.CharField(max_length=10, blank=True)  # bat / field
 
+    # Live State (Google-style 'Super' data)
+    live_status_text = models.CharField(max_length=500, blank=True)
+    current_batters = models.JSONField(default=list, blank=True)  # [{name, runs, balls, on_strike: bool}]
+    current_bowlers = models.JSONField(default=list, blank=True)  # [{name, overs, runs, wickets}]
+    last_balls = models.CharField(max_length=200, blank=True)     # e.g. "1 4 W 0 6 2"
+
     # Raw data snapshot (for debugging / ML training)
     raw_data = models.JSONField(default=dict, blank=True)
+    
+    # Source tracking (Silver layer)
+    primary_source = models.CharField(
+        max_length=20,
+        default='rapidapi_free',
+        help_text='Primary API source for this match'
+    )
+    confidence_score = models.IntegerField(
+        default=50,
+        help_text='0-100: Confidence in accuracy'
+    )
+    source_urls = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of 'provider': 'source_timestamp' pairs that contributed"
+    )
+    stats_completeness = models.FloatField(
+        default=0.0,
+        help_text='0-1: % of scorecard fields available'
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -91,6 +141,8 @@ class Match(models.Model):
         indexes = [
             models.Index(fields=['status', 'match_date']),
             models.Index(fields=['format', 'category']),
+            models.Index(fields=['primary_source']),
+            models.Index(fields=['confidence_score']),
         ]
 
     def __str__(self):
@@ -106,6 +158,8 @@ class MatchScorecard(models.Model):
     total_wickets = models.IntegerField(default=0)
     total_overs = models.FloatField(default=0)
     run_rate = models.FloatField(default=0)
+    crr = models.FloatField(default=0, help_text='Current Run Rate')
+    rrr = models.FloatField(default=0, help_text='Required Run Rate')
     batting_data = models.JSONField(default=list)   # list of {batsman, runs, balls, 4s, 6s, sr}
     bowling_data = models.JSONField(default=list)   # list of {bowler, overs, maidens, runs, wickets, economy}
 

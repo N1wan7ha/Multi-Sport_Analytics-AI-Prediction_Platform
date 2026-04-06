@@ -3,8 +3,7 @@
    Dark-first, premium sports analytics aesthetic
    ═══════════════════════════════════════════════════════════ */
 
-/* ── Google Fonts ──────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Rajdhani:wght@500;600;700&display=swap');
+/* ── Google Fonts (Moved to index.html for stability) ──────────────────────────────────────────── */
 
 /* ── CSS Custom Properties (Design Tokens) ─────────────────── */
 :root {
@@ -47,8 +46,8 @@
   --text-on-primary:        #080c14;
 
   /* Typography */
-  --font-body:              'Inter', system-ui, sans-serif;
-  --font-display:           'Rajdhani', 'Inter', sans-serif;
+  --font-body:              'Space Grotesk', system-ui, sans-serif;
+  --font-display:           'Sora', 'Space Grotesk', sans-serif;
 
   /* Spacing scale */
   --space-1: 0.25rem;
@@ -101,7 +100,10 @@ html {
 
 body {
   font-family: var(--font-body);
-  background-color: var(--bg-app);
+  background:
+    radial-gradient(circle at 8% 8%, rgba(14, 165, 233, 0.07), transparent 24%),
+    radial-gradient(circle at 92% 86%, rgba(16, 185, 129, 0.08), transparent 28%),
+    var(--bg-app);
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
@@ -127,6 +129,15 @@ h5 { font-size: 0.95rem; }
 p  { color: var(--text-secondary); line-height: 1.7; }
 a  { color: var(--color-primary); text-decoration: none; transition: color var(--transition-fast); }
 a:hover { color: var(--color-primary-dark); }
+
+/* Fix for unreadable dropdowns on some browsers (especially in dark mode) */
+select {
+  cursor: pointer;
+  option {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+  }
+}
 
 /* ── Scrollbar ─────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -164,15 +175,17 @@ a:hover { color: var(--color-primary-dark); }
 
 /* ── Card Component ────────────────────────────────────────── */
 .card {
-  background: var(--bg-card);
+  background:
+    linear-gradient(160deg, rgba(21, 30, 45, 0.94), rgba(17, 26, 40, 0.95));
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: var(--space-6);
-  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-fast);
 
   &:hover {
-    border-color: var(--border-muted);
-    box-shadow: var(--shadow-md);
+    border-color: rgba(103, 232, 249, 0.26);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+    transform: translateY(-1px);
   }
 
   &--primary {
@@ -312,6 +325,7 @@ a:hover { color: var(--color-primary-dark); }
   border: none;
   transition: all var(--transition-fast);
   white-space: nowrap;
+  letter-spacing: 0.015em;
 
   &:disabled {
     opacity: 0.5;
@@ -502,34 +516,46 @@ a:hover { color: var(--color-primary-dark); }
 }
 
 .btn-primary {
-  background: var(--color-primary);
+  background: linear-gradient(90deg, #00d4aa, #06b6d4);
   color: var(--text-on-primary);
+  border: 1px solid rgba(6, 182, 212, 0.45);
 }
 
 .btn-primary:hover {
-  background: var(--color-primary-dark);
+  background: linear-gradient(90deg, #00c49d, #0891b2);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-primary);
+  box-shadow: 0 8px 20px rgba(6, 182, 212, 0.28);
 }
 
 .btn-secondary {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.02);
   color: var(--text-secondary);
-  border: 1px solid var(--border-muted);
+  border: 1px solid rgba(148, 163, 184, 0.26);
 }
 
 .btn-secondary:hover {
-  background: var(--bg-card-hover);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
+  border-color: rgba(103, 232, 249, 0.32);
 }
 
 .list-row {
-  padding: 0.75rem 0;
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 0.75rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast), transform var(--transition-fast);
+  margin-bottom: 0.45rem;
+}
+
+.list-row:hover {
+  border-color: rgba(103, 232, 249, 0.28);
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateY(-1px);
 }
 
 .list-row:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .status-error {

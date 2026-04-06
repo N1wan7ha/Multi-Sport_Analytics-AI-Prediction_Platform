@@ -12,8 +12,8 @@ FRANCHISE_KEYWORDS = [
 ]
 
 STATUS_ORDER = {
-    'live': 3,
-    'complete': 2,
+    'complete': 3,
+    'live': 2,
     'upcoming': 1,
     'abandoned': 0,
 }

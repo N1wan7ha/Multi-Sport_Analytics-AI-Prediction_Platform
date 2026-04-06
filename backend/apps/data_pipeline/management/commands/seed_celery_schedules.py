@@ -80,6 +80,18 @@ class Command(BaseCommand):
         )
         self.stdout.write('  ✅ sync_player_stats — every 6 hours')
 
+        # ── Every 6 hours: sync APILayer catalog (sports + affiliates) ─
+        PeriodicTask.objects.update_or_create(
+            name='Sync APILayer Catalog (6h)',
+            defaults={
+                'task': 'apps.data_pipeline.tasks.sync_apilayer_catalog',
+                'interval': every_6h,
+                'args': json.dumps([]),
+                'enabled': True,
+            }
+        )
+        self.stdout.write('  ✅ sync_apilayer_catalog — every 6 hours')
+
         # ── Every 5 minutes: prediction-ready email notifications ─
         prediction_notify_5min, _ = IntervalSchedule.objects.get_or_create(
             every=5, period=IntervalSchedule.MINUTES
@@ -129,5 +141,45 @@ class Command(BaseCommand):
             }
         )
         self.stdout.write('  ✅ run_model_retraining_pipeline — daily at 00:00 IST')
+
+        # ── Daily at 00:20: generate data quality report ─────────
+        quality_report_time, _ = CrontabSchedule.objects.get_or_create(
+            minute='20',
+            hour='0',
+            day_of_week='*',
+            day_of_month='*',
+            month_of_year='*',
+            timezone='Asia/Kolkata',
+        )
+        PeriodicTask.objects.update_or_create(
+            name='Run Data Quality Report Pipeline (daily)',
+            defaults={
+                'task': 'apps.data_pipeline.tasks.run_data_quality_report_pipeline',
+                'crontab': quality_report_time,
+                'args': json.dumps([]),
+                'enabled': True,
+            }
+        )
+        self.stdout.write('  ✅ run_data_quality_report_pipeline — daily at 00:20 IST')
+
+        # ── Daily at 00:30: run rolling-window retraining ─
+        rolling_retrain, _ = CrontabSchedule.objects.get_or_create(
+            minute='30',
+            hour='0',
+            day_of_week='*',
+            day_of_month='*',
+            month_of_year='*',
+            timezone='Asia/Kolkata',
+        )
+        PeriodicTask.objects.update_or_create(
+            name='Run Rolling Window Model Retraining (daily)',
+            defaults={
+                'task': 'apps.data_pipeline.tasks.run_rolling_window_retraining_pipeline',
+                'crontab': rolling_retrain,
+                'args': json.dumps([]),
+                'enabled': True,
+            }
+        )
+        self.stdout.write('  ✅ run_rolling_window_retraining_pipeline — daily at 00:30 IST')
 
         self.stdout.write(self.style.SUCCESS('\n🎯 All Celery Beat schedules configured!'))

@@ -32,6 +32,9 @@ ml/artifacts/*.pkl
 ml/artifacts/*.pt
 ml/artifacts/*.h5
 ml/artifacts/*.joblib
+ml/artifacts/
+backend/ml_engine/artifacts/
+artifacts/
 ml/.ipynb_checkpoints/
 *.ipynb_checkpoints
 
@@ -63,3 +66,16 @@ secrets.yaml
 ~$*.docx
 
 imp.md
+IMPLEMENTATION_STATUS.md
+DATA_QUALITY_GUIDE.md
+plan.md
+
+# Do not version control local resources/datasets/docs.
+resources/
+
+# Local PostgreSQL backup artifacts
+local_matchmind.dump
+
+# Local frontend test scratch file
+frontend/test_rss.json
+

@@ -29,12 +29,15 @@ urlpatterns = [
     path(f'{API_PREFIX}ready/', ReadyView.as_view(), name='ready'),
 
     # ── App Routers ────────────────────────
-    path(f'{API_PREFIX}auth/', include('apps.accounts.urls')),    path(f'{API_PREFIX}admin/', include('apps.admin_api.urls')),    path(f'{API_PREFIX}matches/', include('apps.matches.urls')),
+    path(f'{API_PREFIX}auth/', include('apps.accounts.urls')),
+    path(f'{API_PREFIX}admin/', include('apps.admin_api.urls')),
+    path(f'{API_PREFIX}matches/', include('apps.matches.urls')),
     path(f'{API_PREFIX}players/', include('apps.players.urls')),
     path(f'{API_PREFIX}series/', include('apps.series.urls')),
     path(f'{API_PREFIX}predictions/', include('apps.predictions.urls')),
     path(f'{API_PREFIX}analytics/', include('apps.analytics.urls')),
     path(f'{API_PREFIX}pipeline/', include('apps.data_pipeline.urls')),
+    path(f'{API_PREFIX}data-quality/', include('apps.data_quality.urls')),
 ]
 
 # Serve media in dev

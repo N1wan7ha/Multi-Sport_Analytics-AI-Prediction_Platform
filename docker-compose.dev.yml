@@ -1,18 +1,16 @@
-version: '3.9'
-
 services:
 
   # ─────────────────────────────────────────────
   # PostgreSQL Database
   # ─────────────────────────────────────────────
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: matchmind_db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-matchmind_db}
       POSTGRES_USER: ${DB_USER:-matchmind_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-matchmind_pwd}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-matchmind@pwd}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -37,6 +35,25 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ─────────────────────────────────────────────
+  # Weaviate (Optional Vector Context Store)
+  # ─────────────────────────────────────────────
+  weaviate:
+    image: semitechnologies/weaviate:1.25.5
+    container_name: matchmind_weaviate
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: /var/lib/weaviate
+      DEFAULT_VECTORIZER_MODULE: none
+      ENABLE_MODULES: ''
+      CLUSTER_HOSTNAME: node1
+    volumes:
+      - weaviate_data:/var/lib/weaviate
 
   # ─────────────────────────────────────────────
   # Django Backend
@@ -118,3 +135,4 @@ services:
 
 volumes:
   postgres_data:
+  weaviate_data:

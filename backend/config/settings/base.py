@@ -49,6 +49,7 @@ LOCAL_APPS = [
     'apps.predictions',
     'apps.analytics',
     'apps.data_pipeline',
+    'apps.data_quality',
     'apps.admin_api',
 ]
 
@@ -181,6 +182,8 @@ REST_FRAMEWORK = {
         'anon': '100/min',
         'user': '1000/min',
     },
+    # Keep `format` available for domain filters like cricket match format (odi/t20).
+    'URL_FORMAT_OVERRIDE': None,
 }
 
 SIMPLE_JWT = {
@@ -239,9 +242,45 @@ CRICBUZZ_RAPIDAPI_KEY = config('CRICBUZZ_RAPIDAPI_KEY', default='')
 CRICBUZZ_RAPIDAPI_HOST = config('CRICBUZZ_RAPIDAPI_HOST', default='cricket-api-free-data.p.rapidapi.com')
 CRICBUZZ_BASE_URL = config('CRICBUZZ_BASE_URL', default='https://cricket-api-free-data.p.rapidapi.com')
 
+# RapidAPI free-data host for `/cricket-*` catalog endpoints.
+RAPIDAPI_FREE_KEY = config('RAPIDAPI_FREE_KEY', default=CRICBUZZ_RAPIDAPI_KEY)
+RAPIDAPI_FREE_HOST = config('RAPIDAPI_FREE_HOST', default='cricket-api-free-data.p.rapidapi.com')
+RAPIDAPI_FREE_BASE_URL = config('RAPIDAPI_FREE_BASE_URL', default='https://cricket-api-free-data.p.rapidapi.com')
+
+# livescore6 host for `/matches/v2/*` cricket endpoints.
+LIVESCORE6_RAPIDAPI_KEY = config('LIVESCORE6_RAPIDAPI_KEY', default=CRICBUZZ_RAPIDAPI_KEY)
+LIVESCORE6_RAPIDAPI_HOST = config('LIVESCORE6_RAPIDAPI_HOST', default='livescore6.p.rapidapi.com')
+LIVESCORE6_BASE_URL = config('LIVESCORE6_BASE_URL', default='https://livescore6.p.rapidapi.com')
+
+# Alternative Super Sources
+CRICKET_LIVESCORE_HOST = config('CRICKET_LIVESCORE_HOST', default='cricket-livescore.p.rapidapi.com')
+CRICKET_LIVESCORE_URL = config('CRICKET_LIVESCORE_URL', default='https://cricket-livescore.p.rapidapi.com')
+
+LIVE_SCORE_CRICKET_HOST = config('LIVE_SCORE_CRICKET_HOST', default='live-score-cricket.p.rapidapi.com')
+LIVE_SCORE_CRICKET_URL = config('LIVE_SCORE_CRICKET_URL', default='https://live-score-cricket.p.rapidapi.com')
+
+# APILayer odds/therundown (current usage is cricket-filtered catalog sync).
+APILAYER_API_KEY = config('APILAYER_API_KEY', default='')
+APILAYER_ODDS_BASE_URL = config('APILAYER_ODDS_BASE_URL', default='https://api.apilayer.com/odds')
+APILAYER_THERUNDOWN_BASE_URL = config('APILAYER_THERUNDOWN_BASE_URL', default='https://api.apilayer.com/therundown')
+APILAYER_PRIMARY_SPORT = config('APILAYER_PRIMARY_SPORT', default='cricket')
+
 # ─── ML Engine ────────────────────────────────────────────
 ML_MODEL_PATH = config('ML_MODEL_PATH', default=str(BASE_DIR / 'ml_engine' / 'artifacts'))
 ML_MODEL_VERSION = config('ML_MODEL_VERSION', default='v1.0')
+ML_AUTO_SELECT_BEST_MODEL = config('ML_AUTO_SELECT_BEST_MODEL', default=True, cast=bool)
+ML_ROLLING_WINDOW_YEARS = config('ML_ROLLING_WINDOW_YEARS', default=3, cast=int)
+
+# Optional vector-context augmentation (Weaviate-backed).
+ML_VECTOR_CONTEXT_ENABLED = config('ML_VECTOR_CONTEXT_ENABLED', default=False, cast=bool)
+ML_VECTOR_TOP_K = config('ML_VECTOR_TOP_K', default=6, cast=int)
+ML_VECTOR_MAX_PROB_SHIFT = config('ML_VECTOR_MAX_PROB_SHIFT', default=0.06, cast=float)
+
+WEAVIATE_URL = config('WEAVIATE_URL', default='http://localhost:8080')
+WEAVIATE_API_KEY = config('WEAVIATE_API_KEY', default='')
+WEAVIATE_CLASS_NAME = config('WEAVIATE_CLASS_NAME', default='MatchContext')
+WEAVIATE_TIMEOUT_SECONDS = config('WEAVIATE_TIMEOUT_SECONDS', default=3.0, cast=float)
+
 LIVE_PREDICTION_OVER_STEP = config('LIVE_PREDICTION_OVER_STEP', default=2, cast=int)
 LIVE_PREDICTION_SCHEDULE_MINUTES = config('LIVE_PREDICTION_SCHEDULE_MINUTES', default=2, cast=int)
 MATCH_START_NOTIFICATION_WINDOW_MINUTES = config('MATCH_START_NOTIFICATION_WINDOW_MINUTES', default=30, cast=int)

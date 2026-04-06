@@ -1,18 +1,9 @@
-"""Quick dev settings that use SQLite so we can check migrations without PostgreSQL running."""
+"""Quick dev settings that keep PostgreSQL defaults and simplify local development."""
 from .base import *  # noqa
 
 DEBUG = True
 ALLOWED_HOSTS = ['*']
 CORS_ALLOW_ALL_ORIGINS = True
-
-# SQLite for local dev without Docker
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-        'ATOMIC_REQUESTS': False,
-    }
-}
 
 # Disable REST throttling in dev
 REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []

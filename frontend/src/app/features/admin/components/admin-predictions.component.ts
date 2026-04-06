@@ -45,6 +45,13 @@ interface BulkActionResponse {
   skipped: number;
 }
 
+interface TeamOption {
+  id: number;
+  name: string;
+  short_name?: string;
+  logo_url?: string;
+}
+
 @Component({
   selector: 'app-admin-predictions',
   standalone: true,
@@ -109,7 +116,25 @@ interface BulkActionResponse {
                 />
               </td>
               <td style="padding:.55rem;">#{{ job.id }}</td>
-              <td style="padding:.55rem;">{{ job.match_name }}</td>
+              <td style="padding:.55rem;">
+                <span style="display:inline-flex; align-items:center; gap:.35rem; flex-wrap:wrap;">
+                  <img
+                    *ngIf="getLogoForMatchTeam(job.match_name, 0)"
+                    [src]="getLogoForMatchTeam(job.match_name, 0) || ''"
+                    [alt]="(getMatchTeams(job.match_name)[0] || 'Team') + ' logo'"
+                    style="width:16px; height:16px; border-radius:50%; object-fit:cover; border:1px solid var(--border-primary);"
+                  />
+                  <span>{{ getMatchTeams(job.match_name)[0] || job.match_name }}</span>
+                  <span *ngIf="getMatchTeams(job.match_name).length > 1">vs</span>
+                  <img
+                    *ngIf="getLogoForMatchTeam(job.match_name, 1)"
+                    [src]="getLogoForMatchTeam(job.match_name, 1) || ''"
+                    [alt]="(getMatchTeams(job.match_name)[1] || 'Team') + ' logo'"
+                    style="width:16px; height:16px; border-radius:50%; object-fit:cover; border:1px solid var(--border-primary);"
+                  />
+                  <span *ngIf="getMatchTeams(job.match_name).length > 1">{{ getMatchTeams(job.match_name)[1] }}</span>
+                </span>
+              </td>
               <td style="padding:.55rem;">{{ job.prediction_type }}</td>
               <td style="padding:.55rem;">
                 <span [style.color]="statusColor(job.status)">{{ job.status }}</span>
@@ -177,6 +202,7 @@ interface BulkActionResponse {
 export class AdminPredictionsComponent implements OnInit {
   jobs: AdminPredictionJob[] = [];
   selectedJob: AdminPredictionJob | null = null;
+  private teamLogoByName: Record<string, string> = {};
   statusFilter = '';
   sortBy: 'requested_at' | 'status' | 'prediction_type' = 'requested_at';
   sortDir: 'asc' | 'desc' = 'desc';
@@ -192,7 +218,24 @@ export class AdminPredictionsComponent implements OnInit {
   constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
+    this.loadTeamLogos();
     this.loadJobs();
+  }
+
+  getMatchTeams(matchName: string): string[] {
+    if (!matchName) {
+      return [];
+    }
+    const teams = matchName.split(/\s+vs\s+/i).map((name) => name.trim()).filter(Boolean);
+    return teams.slice(0, 2);
+  }
+
+  getLogoForMatchTeam(matchName: string, teamIndex: 0 | 1): string | null {
+    const teamName = this.getMatchTeams(matchName)[teamIndex];
+    if (!teamName) {
+      return null;
+    }
+    return this.teamLogoByName[teamName.toLowerCase()] || null;
   }
 
   setStatusFilter(status: string): void {
@@ -376,5 +419,24 @@ export class AdminPredictionsComponent implements OnInit {
           this.error = err?.error?.detail || 'Bulk action failed';
         },
       });
+  }
+
+  private loadTeamLogos(): void {
+    this.http.get<TeamOption[]>(`${environment.apiUrl}/auth/team-options/`).subscribe({
+      next: (teams) => {
+        this.teamLogoByName = teams.reduce((acc, team) => {
+          if (team.logo_url) {
+            acc[team.name.toLowerCase()] = team.logo_url;
+            if (team.short_name) {
+              acc[team.short_name.toLowerCase()] = team.logo_url;
+            }
+          }
+          return acc;
+        }, {} as Record<string, string>);
+      },
+      error: () => {
+        this.teamLogoByName = {};
+      },
+    });
   }
 }

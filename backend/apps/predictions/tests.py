@@ -6,6 +6,7 @@ from rest_framework.test import APIClient
 from unittest.mock import Mock, patch
 
 from apps.matches.models import Match, Team
+from apps.players.models import Player, PlayerMatchStats
 from apps.predictions.models import PredictionJob
 from apps.predictions.tasks import schedule_live_predictions
 
@@ -23,8 +24,8 @@ class PredictionsApiTests(TestCase):
 		)
 		self.client.force_authenticate(user=self.user)
 
-		self.team1 = Team.objects.create(name='India')
-		self.team2 = Team.objects.create(name='England')
+		self.team1, _ = Team.objects.get_or_create(name='India')
+		self.team2, _ = Team.objects.get_or_create(name='England')
 		self.match = Match.objects.create(
 			name='India vs England',
 			team1=self.team1,
@@ -45,6 +46,50 @@ class PredictionsApiTests(TestCase):
 		self.assertIn('team1_win_probability', response.data['result'])
 		self.assertIn('feature_snapshot', response.data['result'])
 		self.assertIn('model_kind', response.data['result']['feature_snapshot'])
+		self.assertIn('pre_match_projection', response.data['result'])
+
+	def test_pre_match_projection_includes_gender_segment(self):
+		self.match.name = 'India Women vs England Women'
+		self.match.save(update_fields=['name'])
+
+		response = self.client.post('/api/v1/predictions/', {
+			'match': self.match.id,
+			'prediction_type': 'pre_match',
+		}, format='json')
+
+		self.assertEqual(response.status_code, 201)
+		projection = (response.data.get('result') or {}).get('pre_match_projection') or {}
+		self.assertEqual(projection.get('gender_segment'), 'women')
+
+	def test_prediction_create_requires_authentication(self):
+		anon = APIClient()
+		response = anon.post('/api/v1/predictions/', {
+			'match': self.match.id,
+			'prediction_type': 'pre_match',
+		}, format='json')
+		self.assertEqual(response.status_code, 401)
+
+	def test_prediction_rejects_non_live_or_upcoming_match(self):
+		self.match.status = 'complete'
+		self.match.save(update_fields=['status'])
+
+		response = self.client.post('/api/v1/predictions/', {
+			'match': self.match.id,
+			'prediction_type': 'pre_match',
+		}, format='json')
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn('match', response.data)
+
+	def test_live_prediction_requires_live_match_status(self):
+		response = self.client.post('/api/v1/predictions/', {
+			'match': self.match.id,
+			'prediction_type': 'live',
+			'current_over': 5,
+		}, format='json')
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn('prediction_type', response.data)
 
 	def test_prediction_detail_and_latest_for_match(self):
 		create_response = self.client.post('/api/v1/predictions/', {
@@ -61,14 +106,17 @@ class PredictionsApiTests(TestCase):
 		self.assertEqual(latest_response.status_code, 200)
 		self.assertEqual(latest_response.data['id'], job_id)
 
-	def test_live_prediction_requires_current_over(self):
+	def test_live_prediction_allows_missing_current_over(self):
+		self.match.status = 'live'
+		self.match.save(update_fields=['status'])
+
 		response = self.client.post('/api/v1/predictions/', {
 			'match': self.match.id,
 			'prediction_type': 'live',
 			'current_score': '92/2',
 		}, format='json')
-		self.assertEqual(response.status_code, 400)
-		self.assertIn('current_over', response.data)
+		self.assertEqual(response.status_code, 201)
+		self.assertEqual(response.data['prediction_type'], 'live')
 
 	def test_live_prediction_persists_live_context_and_latest_filter(self):
 		self.match.status = 'live'
@@ -91,13 +139,67 @@ class PredictionsApiTests(TestCase):
 		self.assertEqual(latest_live.status_code, 200)
 		self.assertEqual(latest_live.data['prediction_type'], 'live')
 
+	def test_live_prediction_returns_explainability_with_historical_player_fallback(self):
+		self.match.status = 'live'
+		self.match.current_batters = []
+		self.match.current_bowlers = []
+		self.match.save(update_fields=['status', 'current_batters', 'current_bowlers'])
+
+		hist_match = Match.objects.create(
+			name='India vs England Historic',
+			team1=self.team1,
+			team2=self.team2,
+			status='complete',
+			format='odi',
+			category='international',
+			match_date='2025-05-01',
+		)
+
+		t1_player = Player.objects.create(name='India Batter', team=self.team1)
+		t2_player = Player.objects.create(name='England Bowler', team=self.team2)
+
+		PlayerMatchStats.objects.create(
+			player=t1_player,
+			match=hist_match,
+			innings_number=1,
+			runs_scored=70,
+			strike_rate=110.0,
+			wickets_taken=0,
+			economy=0,
+		)
+		PlayerMatchStats.objects.create(
+			player=t2_player,
+			match=hist_match,
+			innings_number=1,
+			runs_scored=5,
+			strike_rate=60.0,
+			wickets_taken=2,
+			economy=4.5,
+		)
+
+		response = self.client.post('/api/v1/predictions/', {
+			'match': self.match.id,
+			'prediction_type': 'live',
+			'current_over': 12,
+			'current_score': '98/3',
+		}, format='json')
+
+		self.assertEqual(response.status_code, 201)
+		result = response.data.get('result') or {}
+		self.assertIn('explainability', result)
+		explainability = result.get('explainability') or {}
+		self.assertIn('team_strength_score', explainability)
+		self.assertIn('player_impact_score', explainability)
+		self.assertIn('momentum_score', explainability)
+		self.assertIn('player_impact_score', result)
+
 
 @override_settings(LIVE_PREDICTION_OVER_STEP=2)
 class LivePredictionSchedulerTests(TestCase):
 	def setUp(self):
 		cache.clear()
-		self.team1 = Team.objects.create(name='Australia')
-		self.team2 = Team.objects.create(name='Pakistan')
+		self.team1, _ = Team.objects.get_or_create(name='Australia')
+		self.team2, _ = Team.objects.get_or_create(name='Pakistan')
 		self.match = Match.objects.create(
 			name='Australia vs Pakistan',
 			team1=self.team1,

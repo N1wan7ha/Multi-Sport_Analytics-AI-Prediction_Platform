@@ -63,6 +63,47 @@ import { ApiService, PredictionJob } from '../../../core/services/api.service';
               <strong>Live:</strong> Over {{ job.result.current_over }} · Score {{ job.result.current_score || '-' }}
             </p>
             <p class="text-secondary"><strong>Model:</strong> {{ job.result.feature_snapshot['model_kind'] || 'unknown' }}</p>
+
+            <div *ngIf="job.result.pre_match_projection as projection" style="margin-top:.95rem; border-top:1px dashed var(--border); padding-top:.8rem;">
+              <h4 style="margin:0 0 .5rem;">Pre-Match Forecast</h4>
+              <p *ngIf="projection.gender_segment" class="text-secondary" style="margin-top:.2rem;">
+                <strong>Division:</strong> {{ projection.gender_segment === 'women' ? 'Women' : 'Men' }}
+              </p>
+              <p *ngIf="projection.projected_winner">
+                <strong>Projected Winner:</strong>
+                {{ projection.projected_winner.team_name }}
+                ({{ (projection.projected_winner.win_probability * 100) | number:'1.0-2' }}%)
+              </p>
+
+              <div *ngIf="projection.team_totals as totals" style="display:grid; gap:.45rem; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); margin-top:.4rem;">
+                <div *ngIf="totals.team1" class="list-row" style="display:grid; gap:.2rem;">
+                  <strong>{{ totals.team1.team_name }}</strong>
+                  <span class="text-secondary">
+                    Score: {{ totals.team1.projected_score }}
+                    ({{ totals.team1.projected_score_range[0] }}-{{ totals.team1.projected_score_range[1] }})
+                  </span>
+                  <span class="text-secondary">Wickets: {{ totals.team1.projected_wickets_lost }}</span>
+                </div>
+                <div *ngIf="totals.team2" class="list-row" style="display:grid; gap:.2rem;">
+                  <strong>{{ totals.team2.team_name }}</strong>
+                  <span class="text-secondary">
+                    Score: {{ totals.team2.projected_score }}
+                    ({{ totals.team2.projected_score_range[0] }}-{{ totals.team2.projected_score_range[1] }})
+                  </span>
+                  <span class="text-secondary">Wickets: {{ totals.team2.projected_wickets_lost }}</span>
+                </div>
+              </div>
+
+              <div *ngIf="projection.top_performers as tp" style="margin-top:.6rem; display:grid; gap:.25rem;">
+                <p *ngIf="tp.top_batter"><strong>Top Batter:</strong> {{ tp.top_batter.player_name }} ({{ tp.top_batter.team_name }})</p>
+                <p *ngIf="tp.best_bowler"><strong>Best Bowler:</strong> {{ tp.best_bowler.player_name }} ({{ tp.best_bowler.team_name }})</p>
+                <p *ngIf="tp.best_all_rounder"><strong>Best All-Rounder:</strong> {{ tp.best_all_rounder.player_name }} ({{ tp.best_all_rounder.team_name }})</p>
+              </div>
+
+              <p *ngIf="projection.insights?.length" class="text-secondary" style="margin-top:.5rem;">
+                {{ (projection.insights || [])[0] }}
+              </p>
+            </div>
           </div>
         </div>
       </div>

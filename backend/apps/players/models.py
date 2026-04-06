@@ -22,12 +22,32 @@ class Player(models.Model):
     team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True)
     image_url = models.URLField(blank=True)
     raw_data = models.JSONField(default=dict, blank=True)
+    
+    # Source tracking (Silver layer)
+    primary_source = models.CharField(
+        max_length=20,
+        default='rapidapi_free',
+        help_text='Primary API source for this player'
+    )
+    confidence_score = models.IntegerField(
+        default=50,
+        help_text='0-100: Confidence in accuracy'
+    )
+    source_urls = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of 'provider': 'source_timestamp' pairs that contributed"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'players'
         ordering = ['name']
+        indexes = [
+            models.Index(fields=['primary_source']),
+            models.Index(fields=['confidence_score']),
+        ]
 
     def __str__(self):
         return self.name

@@ -3,92 +3,119 @@ import { authGuard } from './core/guards/auth.guard';
 import { adminGuard } from './core/guards/admin.guard';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+  { path: '', redirectTo: 'home', pathMatch: 'full' },
 
   {
     path: 'auth/login',
     loadComponent: () =>
       import('./features/auth/login/login.component').then(m => m.LoginComponent),
-    title: 'Login — MatchMind',
+    title: 'Login | MatchMind',
   },
   {
     path: 'auth/register',
     loadComponent: () =>
       import('./features/auth/register/register.component').then(m => m.RegisterComponent),
-    title: 'Register — MatchMind',
+    title: 'Register | MatchMind',
   },
   {
     path: 'auth/verify-email',
     loadComponent: () =>
       import('./features/auth/verify-email/verify-email.component').then(m => m.VerifyEmailComponent),
-    title: 'Verify Email — MatchMind',
+    title: 'Verify Email | MatchMind',
   },
 
   {
     path: '',
-    canActivate: [authGuard],
     loadComponent: () =>
       import('./shell/app-shell.component').then(m => m.AppShellComponent),
     children: [
       {
-        path: 'dashboard',
+        path: 'home',
         loadComponent: () =>
           import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
-        title: 'Dashboard — MatchMind',
+        title: 'Home | MatchMind',
+      },
+      {
+        path: 'dashboard',
+        redirectTo: 'home',
+        pathMatch: 'full',
+      },
+      {
+        path: 'favorites',
+        canActivate: [authGuard],
+        loadComponent: () =>
+          import('./features/favorites/favorites-overview/favorites-overview.component').then(m => m.FavoritesOverviewComponent),
+        title: 'Favorites | MatchMind',
       },
       {
         path: 'matches',
         loadComponent: () =>
           import('./features/matches/match-list/match-list.component').then(m => m.MatchListComponent),
-        title: 'Matches — MatchMind',
+        title: 'Matches | MatchMind',
       },
       {
         path: 'matches/:id',
         loadComponent: () =>
           import('./features/matches/match-detail/match-detail.component').then(m => m.MatchDetailComponent),
-        title: 'Match Detail — MatchMind',
+        title: 'Match Detail | MatchMind',
       },
       {
         path: 'matches/:id/predict',
+        canActivate: [authGuard],
         loadComponent: () =>
           import('./features/predictions/prediction-view/prediction-view.component').then(m => m.PredictionViewComponent),
-        title: 'Prediction — MatchMind',
+        title: 'Prediction | MatchMind',
+      },
+      {
+        path: 'predictions',
+        canActivate: [authGuard],
+        loadComponent: () =>
+          import('./features/predictions/prediction-center/prediction-center.component').then(m => m.PredictionCenterComponent),
+        title: 'Predictions Hub | MatchMind',
+      },
+      {
+        path: 'history',
+        canActivate: [authGuard],
+        loadComponent: () =>
+          import('./features/history/history-explorer/history-explorer.component').then(m => m.HistoryExplorerComponent),
+        title: 'History Explorer | MatchMind',
       },
       {
         path: 'series',
         loadComponent: () =>
           import('./features/series/series-list/series-list.component').then(m => m.SeriesListComponent),
-        title: 'Series — MatchMind',
+        title: 'Series | MatchMind',
       },
       {
         path: 'series/:id',
         loadComponent: () =>
           import('./features/series/series-detail/series-detail.component').then(m => m.SeriesDetailComponent),
-        title: 'Series Detail — MatchMind',
+        title: 'Series Detail | MatchMind',
       },
       {
         path: 'players',
         loadComponent: () =>
           import('./features/players/player-list/player-list.component').then(m => m.PlayerListComponent),
-        title: 'Players — MatchMind',
+        title: 'Players | MatchMind',
       },
       {
         path: 'players/:id',
         loadComponent: () =>
           import('./features/players/player-detail/player-detail.component').then(m => m.PlayerDetailComponent),
-        title: 'Player Profile — MatchMind',
+        title: 'Player Profile | MatchMind',
       },
       {
         path: 'analytics',
         loadComponent: () =>
           import('./features/analytics/analytics-dashboard/analytics-dashboard.component').then(m => m.AnalyticsDashboardComponent),
-        title: 'Analytics — MatchMind',
+        title: 'Analytics | MatchMind',
       },
       {
         path: 'auth/profile',
+        canActivate: [authGuard],
         loadComponent: () =>
           import('./features/auth/profile/profile.component').then(m => m.ProfileComponent),
-        title: 'Profile — MatchMind',
+        title: 'Profile | MatchMind',
       },
       {
         path: 'admin',
@@ -96,6 +123,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/admin/admin.component').then(m => m.AdminDashboardComponent),
         children: [
+          {
+            path: 'overview',
+            loadComponent: () =>
+              import('./features/admin/components/admin-overview.component').then(m => m.AdminOverviewComponent),
+          },
           {
             path: 'users',
             loadComponent: () =>
@@ -121,12 +153,12 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/admin/components/admin-predictions.component').then(m => m.AdminPredictionsComponent),
           },
-          { path: '', redirectTo: 'users', pathMatch: 'full' },
+          { path: '', redirectTo: 'overview', pathMatch: 'full' },
         ],
       },
-      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      { path: '', redirectTo: 'home', pathMatch: 'full' },
     ],
   },
 
-  { path: '**', redirectTo: 'dashboard' },
+  { path: '**', redirectTo: 'home' },
 ];

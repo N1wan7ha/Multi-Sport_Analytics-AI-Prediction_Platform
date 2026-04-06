@@ -98,34 +98,24 @@ class PipelineTaskIntegrationTests(TestCase):
         self.assertEqual(created.team2.name, 'England')
         self.assertIsNotNone(cache.get('pipeline:current_matches:last_sync_at'))
 
-    @patch('apps.data_pipeline.tasks._cricbuzz_get')
-    def test_sync_cricbuzz_live_writes_live_match_rows(self, mock_cricbuzz_get):
-        mock_cricbuzz_get.return_value = {
-            'typeMatches': [
-                {
-                    'matchType': 'League',
-                    'seriesMatches': [
-                        {
-                            'seriesAdWrapper': {
-                                'seriesName': 'Indian Premier League',
-                                'matches': [
-                                    {
-                                        'matchInfo': {
-                                            'matchId': 'cbz1',
-                                            'team1': {'teamName': 'MI'},
-                                            'team2': {'teamName': 'CSK'},
-                                            'matchFormat': 'T20',
-                                            'startDate': '1773964800000',
-                                            'venueInfo': {'ground': 'Eden Gardens'},
-                                        }
-                                    }
-                                ],
-                            }
-                        }
-                    ],
-                }
-            ]
-        }
+    @patch('apps.data_pipeline.tasks._extract_live_rows_with_fallback')
+    def test_sync_cricbuzz_live_writes_live_match_rows(self, mock_extract_live_rows):
+        mock_extract_live_rows.return_value = (
+            [
+                normalize_cricbuzz_live_match(
+                    {
+                        'matchId': 'cbz1',
+                        'team1': {'teamName': 'MI'},
+                        'team2': {'teamName': 'CSK'},
+                        'matchFormat': 'T20',
+                        'startDate': '1773964800000',
+                        'venueInfo': {'ground': 'Eden Gardens'},
+                    }
+                )
+            ],
+            'rapidapi_cricbuzz2',
+            '/matches/v1/live',
+        )
 
         result = tasks.sync_cricbuzz_live.run()
 
@@ -133,7 +123,7 @@ class PipelineTaskIntegrationTests(TestCase):
         self.assertEqual(Match.objects.count(), 1)
         created = Match.objects.get(cricbuzz_id='cbz1')
         self.assertEqual(created.status, 'live')
-        self.assertEqual(created.category, 'franchise')
+        self.assertEqual(created.category, 'international')
         self.assertIsNotNone(cache.get('pipeline:live_matches:last_sync_at'))
 
     @patch('apps.data_pipeline.tasks._cricapi_get')
@@ -228,16 +218,63 @@ class ModelRetrainingTaskTests(TestCase):
         self.assertEqual(cache.get('pipeline:model_retraining:last_result')['accuracy'], 0.87)
         self.assertIsNotNone(cache.get('pipeline:model_retraining:last_run_at'))
 
+    def test_run_rolling_window_retraining_pipeline_skips_without_complete_matches(self):
+        # Ensure the skip path is evaluated even when fixture/seed data exists.
+        Match.objects.filter(status='complete').delete()
+        result = tasks.run_rolling_window_retraining_pipeline.run()
+
+        self.assertEqual(result['status'], 'skipped')
+        self.assertEqual(result['reason'], 'no complete matches with match_date found')
+        self.assertIsNotNone(cache.get('pipeline:model_retraining:rolling:last_run_at'))
+
+    @patch('apps.data_pipeline.tasks.train_models_for_year_range')
+    def test_run_rolling_window_retraining_pipeline_calls_year_range_trainer(self, mock_train):
+        team1, _ = Team.objects.get_or_create(name='India')
+        team2, _ = Team.objects.get_or_create(name='England')
+        Match.objects.create(
+            name='India vs England Complete',
+            team1=team1,
+            team2=team2,
+            status='complete',
+            format='odi',
+            category='international',
+            match_date='2026-01-05',
+        )
+
+        mock_train.return_value = TrainingSummary(
+            version='v1.0-rolling-2024-2026',
+            sample_count=250,
+            model_type='sklearn_ensemble',
+            accuracy=0.8,
+            auc_roc=0.86,
+            brier_score=0.19,
+        )
+
+        result = tasks.run_rolling_window_retraining_pipeline.run(years=3)
+
+        self.assertEqual(result['status'], 'complete')
+        self.assertEqual(result['window_years'], 3)
+        self.assertIsNotNone(result.get('end_year'))
+        self.assertIsNotNone(result.get('start_year'))
+
+        mock_train.assert_called_once()
+        call_args = mock_train.call_args
+        self.assertEqual(call_args.args[0], tasks.settings.ML_MODEL_PATH)
+        self.assertEqual(call_args.kwargs['version'], result['version'])
+        self.assertEqual(call_args.kwargs['start_year'], result['start_year'])
+        self.assertEqual(call_args.kwargs['end_year'], result['end_year'])
+        self.assertEqual(cache.get('pipeline:model_retraining:rolling:last_result')['version'], 'v1.0-rolling-2024-2026')
+
 
 class RapidApiCatalogSyncTests(TestCase):
     @patch('apps.data_pipeline.tasks._rapidapi_get_with_fallback')
     def test_sync_rapidapi_teams_creates_team_rows(self, mock_rapidapi_get):
         mock_rapidapi_get.side_effect = [
-            {'data': [{'name': 'India', 'shortName': 'IND', 'country': 'India'}]},
-            {'data': [{'name': 'Australia Women', 'shortName': 'AUSW', 'country': 'Australia'}]},
-            {'data': [{'name': 'Chennai Super Kings', 'shortName': 'CSK', 'country': 'India'}]},
-            {'data': [{'name': 'Mumbai', 'shortName': 'MUM', 'country': 'India'}]},
-            {'data': [{'name': 'India', 'logo': 'https://img.example.com/india.png'}]},
+            ({'data': [{'name': 'India', 'shortName': 'IND', 'country': 'India'}]}, 'rapidapi_free', '/cricket-teams'),
+            ({'data': [{'name': 'Australia Women', 'shortName': 'AUSW', 'country': 'Australia'}]}, 'rapidapi_free', '/cricket-teams-women'),
+            ({'data': [{'name': 'Chennai Super Kings', 'shortName': 'CSK', 'country': 'India'}]}, 'rapidapi_free', '/cricket-teams-ipl'),
+            ({'data': [{'name': 'Mumbai', 'shortName': 'MUM', 'country': 'India'}]}, 'rapidapi_free', '/cricket-teams-bbl'),
+            ({'data': [{'name': 'India', 'logo': 'https://img.example.com/india.png'}]}, 'rapidapi_free', '/cricket-team-logo'),
         ]
 
         result = tasks.sync_rapidapi_teams.run()
@@ -251,18 +288,22 @@ class RapidApiCatalogSyncTests(TestCase):
     @patch('apps.data_pipeline.tasks._rapidapi_get_with_fallback')
     def test_sync_rapidapi_players_creates_player_rows(self, mock_rapidapi_get):
         team = Team.objects.create(name='India')
-        mock_rapidapi_get.return_value = {
-            'data': [
-                {
-                    'id': 'p-1',
-                    'name': 'Virat Kohli',
-                    'fullName': 'Virat Kohli',
-                    'country': 'India',
-                    'role': 'batter',
-                    'battingStyle': 'Right-hand bat',
-                }
-            ]
-        }
+        mock_rapidapi_get.return_value = (
+            {
+                'data': [
+                    {
+                        'id': 'p-1',
+                        'name': 'Virat Kohli',
+                        'fullName': 'Virat Kohli',
+                        'country': 'India',
+                        'role': 'batter',
+                        'battingStyle': 'Right-hand bat',
+                    }
+                ]
+            },
+            'rapidapi_free',
+            '/cricket-players?team=India',
+        )
 
         result = tasks.sync_rapidapi_players.run(team_id=team.id)
 
@@ -274,14 +315,18 @@ class RapidApiCatalogSyncTests(TestCase):
     @patch('apps.data_pipeline.tasks._rapidapi_get_with_fallback')
     def test_sync_rapidapi_team_logos_updates_existing_team(self, mock_rapidapi_get):
         Team.objects.create(name='India')
-        mock_rapidapi_get.return_value = {
-            'data': [
-                {
-                    'name': 'India',
-                    'logo': 'https://img.example.com/india-logo.png',
-                }
-            ]
-        }
+        mock_rapidapi_get.return_value = (
+            {
+                'data': [
+                    {
+                        'name': 'India',
+                        'logo': 'https://img.example.com/india-logo.png',
+                    }
+                ]
+            },
+            'rapidapi_free',
+            '/cricket-team-logo',
+        )
 
         result = tasks.sync_rapidapi_team_logos.run()
 

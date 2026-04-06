@@ -63,3 +63,43 @@ class PipelineStatusView(APIView):
             }
 
         return Response(payload)
+
+
+class ManualMatchSyncView(APIView):
+    """Trigger an immediate background sync for a specific match's scorecard/live data."""
+
+    def post(self, request):
+        match_id = request.data.get('match_id')
+        if not match_id:
+            return Response({'error': 'match_id is required'}, status=400)
+
+        match = Match.objects.filter(id=match_id).first()
+        if not match:
+            return Response({'error': 'Match not found'}, status=404)
+
+        # Trigger sync_player_stats task
+        from .tasks import sync_player_stats
+        
+        # Determine the source ID to use
+        source_id = match.cricapi_id or match.cricbuzz_id
+        if not source_id:
+            return Response({'error': 'Match has no provider ID for syncing live data'}, status=400)
+
+        # We run it as a background task
+        sync_player_stats.delay(match_id=source_id)
+        
+        return Response({'status': 'Sync triggered', 'source_id': source_id})
+
+
+class GithubSyncView(APIView):
+    """Trigger a sync from a public GitHub JSON feed."""
+
+    def post(self, request):
+        json_url = request.data.get('json_url')
+        if not json_url:
+            return Response({'error': 'json_url is required'}, status=400)
+
+        from .tasks import sync_from_github_data
+        sync_from_github_data.delay(json_url=json_url)
+        
+        return Response({'status': 'GitHub sync triggered', 'url': json_url})

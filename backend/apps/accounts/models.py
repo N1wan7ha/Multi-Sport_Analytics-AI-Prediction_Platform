@@ -2,6 +2,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from apps.matches.models import Team
+from apps.players.models import Player
 
 
 class User(AbstractUser):
@@ -44,6 +45,19 @@ class UserFavouriteTeam(models.Model):
 
     def __str__(self):
         return f"{self.user.email} -> {self.team.name}"
+
+
+class UserFavouritePlayer(models.Model):
+    user = models.ForeignKey(User, related_name='favourite_players', on_delete=models.CASCADE)
+    player = models.ForeignKey(Player, related_name='favoured_by_users', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'user_favourite_players'
+        unique_together = ('user', 'player')
+
+    def __str__(self):
+        return f"{self.user.email} -> {self.player.name}"
 
 
 class NotificationDispatch(models.Model):

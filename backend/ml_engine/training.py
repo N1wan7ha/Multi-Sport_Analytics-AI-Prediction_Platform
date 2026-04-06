@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, date
 
 from django.db.models import Q
 
@@ -93,6 +93,40 @@ def _build_dataset() -> tuple[list[list[float]], list[int]]:
         team2__isnull=False,
         winner__isnull=False,
         match_date__isnull=False,
+    ).order_by('match_date', 'id')
+
+    X_rows: list[list[float]] = []
+    y_rows: list[int] = []
+
+    for match in matches:
+        features = _features_for_match(match)
+        X_rows.append([features[col] for col in FEATURE_COLUMNS])
+        winner_pk = int(getattr(match, 'winner_id', 0) or 0)
+        team1_pk = int(getattr(match, 'team1_id', 0) or 0)
+        y_rows.append(1 if winner_pk == team1_pk else 0)
+
+    if not X_rows:
+        return [], []
+
+    return X_rows, y_rows
+
+
+def _build_dataset_for_year_range(start_year: int, end_year: int) -> tuple[list[list[float]], list[int]]:
+    """Build a dataset constrained to matches in an inclusive year range."""
+    if start_year > end_year:
+        start_year, end_year = end_year, start_year
+
+    start_date = date(start_year, 1, 1)
+    end_date = date(end_year, 12, 31)
+
+    matches = Match.objects.select_related('team1', 'team2', 'venue', 'winner').filter(
+        status='complete',
+        team1__isnull=False,
+        team2__isnull=False,
+        winner__isnull=False,
+        match_date__isnull=False,
+        match_date__gte=start_date,
+        match_date__lte=end_date,
     ).order_by('match_date', 'id')
 
     X_rows: list[list[float]] = []
@@ -207,6 +241,126 @@ def train_models_from_matches(model_path: str, version: str = 'v1.1') -> Trainin
             'accuracy': round(accuracy, 4),
             'auc_roc': round(auc, 4),
             'brier_score': round(brier, 4),
+        },
+    )
+
+    return TrainingSummary(
+        version=version,
+        sample_count=int(len(X)),
+        model_type='sklearn_ensemble',
+        accuracy=round(accuracy, 4),
+        auc_roc=round(auc, 4),
+        brier_score=round(brier, 4),
+    )
+
+
+def train_models_for_year_range(
+    model_path: str,
+    version: str,
+    start_year: int,
+    end_year: int,
+) -> TrainingSummary:
+    """Train and persist a model using matches from a specific inclusive year range."""
+    X, y = _build_dataset_for_year_range(start_year=start_year, end_year=end_year)
+    if len(X) < 20:
+        logger.warning('Insufficient year-range samples for robust training')
+        summary = TrainingSummary(version=version, sample_count=int(len(X)), model_type='fallback')
+        save_bundle(
+            model_path,
+            version,
+            {
+                'type': 'fallback',
+                'feature_columns': FEATURE_COLUMNS,
+                'bias': 0.5,
+                'trained_at': datetime.utcnow().isoformat(),
+                'year_range': {'start_year': int(start_year), 'end_year': int(end_year)},
+            },
+            {
+                'sample_count': int(len(X)),
+                'model_type': 'fallback',
+                'note': 'Need at least 20 labeled completed matches for sklearn training.',
+                'year_range': {'start_year': int(start_year), 'end_year': int(end_year)},
+            },
+        )
+        return summary
+
+    try:
+        import importlib
+
+        sklearn_ensemble = importlib.import_module('sklearn.ensemble')
+        sklearn_metrics = importlib.import_module('sklearn.metrics')
+        sklearn_model_selection = importlib.import_module('sklearn.model_selection')
+
+        RandomForestClassifier = sklearn_ensemble.RandomForestClassifier
+        GradientBoostingClassifier = sklearn_ensemble.GradientBoostingClassifier
+        accuracy_score = sklearn_metrics.accuracy_score
+        roc_auc_score = sklearn_metrics.roc_auc_score
+        brier_score_loss = sklearn_metrics.brier_score_loss
+        train_test_split = sklearn_model_selection.train_test_split
+    except Exception as exc:  # pragma: no cover - import guard for minimal envs
+        logger.warning(f'scikit-learn unavailable; saving fallback model bundle: {exc}')
+        summary = TrainingSummary(version=version, sample_count=int(len(X)), model_type='fallback')
+        save_bundle(
+            model_path,
+            version,
+            {
+                'type': 'fallback',
+                'feature_columns': FEATURE_COLUMNS,
+                'bias': float(sum(y) / len(y)) if len(y) else 0.5,
+                'trained_at': datetime.utcnow().isoformat(),
+                'year_range': {'start_year': int(start_year), 'end_year': int(end_year)},
+            },
+            {
+                'sample_count': int(len(X)),
+                'model_type': 'fallback',
+                'note': 'scikit-learn missing in runtime environment',
+                'year_range': {'start_year': int(start_year), 'end_year': int(end_year)},
+            },
+        )
+        return summary
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.25,
+        random_state=42,
+        stratify=y,
+    )
+
+    rf = RandomForestClassifier(n_estimators=250, random_state=42)
+    gb = GradientBoostingClassifier(random_state=42)
+    rf.fit(X_train, y_train)
+    gb.fit(X_train, y_train)
+
+    rf_prob = rf.predict_proba(X_test)[:, 1]
+    gb_prob = gb.predict_proba(X_test)[:, 1]
+    ensemble_prob = (0.6 * rf_prob) + (0.4 * gb_prob)
+    y_pred = (ensemble_prob >= 0.5).astype(int)
+
+    accuracy = float(accuracy_score(y_test, y_pred))
+    auc = float(roc_auc_score(y_test, ensemble_prob))
+    brier = float(brier_score_loss(y_test, ensemble_prob))
+
+    bundle = {
+        'type': 'sklearn_ensemble',
+        'feature_columns': FEATURE_COLUMNS,
+        'rf': rf,
+        'gb': gb,
+        'weights': {'rf': 0.6, 'gb': 0.4},
+        'trained_at': datetime.utcnow().isoformat(),
+        'year_range': {'start_year': int(start_year), 'end_year': int(end_year)},
+    }
+    save_bundle(
+        model_path,
+        version,
+        bundle,
+        {
+            'sample_count': int(len(X)),
+            'model_type': 'sklearn_ensemble',
+            'accuracy': round(accuracy, 4),
+            'auc_roc': round(auc, 4),
+            'brier_score': round(brier, 4),
+            'year_range': {'start_year': int(start_year), 'end_year': int(end_year)},
         },
     )
 
