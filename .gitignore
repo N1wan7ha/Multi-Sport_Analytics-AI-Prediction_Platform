@@ -65,10 +65,6 @@ secrets.yaml
 # ─── Temp lock files (Word) ────────────────────
 ~$*.docx
 
-imp.md
-IMPLEMENTATION_STATUS.md
-DATA_QUALITY_GUIDE.md
-plan.md
 
 # Do not version control local resources/datasets/docs.
 resources/
