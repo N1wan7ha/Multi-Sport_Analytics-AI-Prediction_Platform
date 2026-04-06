@@ -102,6 +102,10 @@ jobs:
         working-directory: backend
         env:
           DJANGO_SETTINGS_MODULE: config.settings.dev
+          DB_HOST: localhost
+          DB_NAME: matchmind_test
+          DB_USER: test_user
+          DB_PASSWORD: test_password
         run: pytest --tb=short -q
 
       - name: Set up Node.js

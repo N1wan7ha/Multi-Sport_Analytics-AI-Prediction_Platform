@@ -1,5 +1,6 @@
 """Data pipeline Celery tasks — syncs cricket data from APIs to PostgreSQL."""
 import logging
+import re
 from datetime import datetime
 from time import perf_counter
 from typing import Any
