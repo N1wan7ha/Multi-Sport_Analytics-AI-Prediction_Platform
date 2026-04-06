@@ -40,6 +40,18 @@ def _parse_requested_filters(request):
     return requested_format, requested_category
 
 
+def _resolve_alias_values(aliases, requested_value):
+    if not requested_value:
+        return {requested_value}
+
+    for canonical, values in aliases.items():
+        normalized_values = {str(v).strip().lower() for v in values}
+        if requested_value == canonical or requested_value in normalized_values:
+            return normalized_values
+
+    return {requested_value}
+
+
 def _apply_match_filters(queryset, requested_format, requested_category):
     model_field_names = {field.name for field in queryset.model._meta.get_fields()}
 
@@ -51,12 +63,12 @@ def _apply_match_filters(queryset, requested_format, requested_category):
         return field_name
 
     if requested_format and requested_format != 'all':
-        format_values = FORMAT_ALIASES.get(requested_format, {requested_format})
+        format_values = _resolve_alias_values(FORMAT_ALIASES, requested_format)
         format_field = _resolve_field('format')
         queryset = queryset.filter(**{f'{format_field}__in': list(format_values)})
 
     if requested_category and requested_category != 'all':
-        category_values = CATEGORY_ALIASES.get(requested_category, {requested_category})
+        category_values = _resolve_alias_values(CATEGORY_ALIASES, requested_category)
         category_field = _resolve_field('category')
         queryset = queryset.filter(**{f'{category_field}__in': list(category_values)})
 
