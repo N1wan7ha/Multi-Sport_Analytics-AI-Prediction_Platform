@@ -41,13 +41,24 @@ def _parse_requested_filters(request):
 
 
 def _apply_match_filters(queryset, requested_format, requested_category):
+    model_field_names = {field.name for field in queryset.model._meta.get_fields()}
+
+    def _resolve_field(field_name):
+        if field_name in model_field_names:
+            return field_name
+        if 'match' in model_field_names:
+            return f'match__{field_name}'
+        return field_name
+
     if requested_format and requested_format != 'all':
         format_values = FORMAT_ALIASES.get(requested_format, {requested_format})
-        queryset = queryset.filter(format__in=list(format_values))
+        format_field = _resolve_field('format')
+        queryset = queryset.filter(**{f'{format_field}__in': list(format_values)})
 
     if requested_category and requested_category != 'all':
         category_values = CATEGORY_ALIASES.get(requested_category, {requested_category})
-        queryset = queryset.filter(category__in=list(category_values))
+        category_field = _resolve_field('category')
+        queryset = queryset.filter(**{f'{category_field}__in': list(category_values)})
 
     return queryset
 

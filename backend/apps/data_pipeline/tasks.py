@@ -789,11 +789,15 @@ def sync_current_matches(self):
             logger.info(f"RapidAPI fallback retrieved {len(rows)} live rows using {fallback_provider}")
 
         # Supplement upcoming fixtures from RapidAPI so UI filters have consistent data.
-        upcoming_payload, upcoming_provider, _ = _rapidapi_get_with_fallback([
-            RAPIDAPI_ENDPOINTS['matches']['upcoming'],
-            LEGACY_RAPIDAPI_ENDPOINTS['upcoming_matches'],
-        ], health_key='matches_upcoming', return_meta=True)
-        rows.extend(_extract_rapidapi_matches(upcoming_payload, status='upcoming'))
+        upcoming_provider = ''
+        try:
+            upcoming_payload, upcoming_provider, _ = _rapidapi_get_with_fallback([
+                RAPIDAPI_ENDPOINTS['matches']['upcoming'],
+                LEGACY_RAPIDAPI_ENDPOINTS['upcoming_matches'],
+            ], health_key='matches_upcoming', return_meta=True)
+            rows.extend(_extract_rapidapi_matches(upcoming_payload, status='upcoming'))
+        except Exception as upcoming_exc:
+            logger.warning('sync_current_matches: upcoming enrichment skipped due to RapidAPI error: %s', upcoming_exc)
 
         rows = merge_and_dedupe_matches(rows)
         synced = 0
